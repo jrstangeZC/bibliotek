@@ -34,6 +34,16 @@ const messages: Record<string, { title: string; description: string }> = {
     description:
       "Personen står ikke i registeret lenger. Du er ikke logget inn. Velg en annen i listen under.",
   },
+  "bok-ikke-funnet": {
+    title: "Fant ikke boken",
+    description:
+      "Tittelen er allerede fjernet fra katalogen, kanskje av en annen bibliotekar. Ingen ting ble endret. Kontroller listen under.",
+  },
+  "bok-utlant": {
+    title: "Boken kan ikke slettes nå",
+    description:
+      "Minst ett eksemplar er ute på lån. Sletting ble ikke gjennomført. Registrer retur under Aktive lån, og prøv igjen.",
+  },
   "allerede-levert": {
     title: "Lånet er allerede levert",
     description:
@@ -43,6 +53,16 @@ const messages: Record<string, { title: string; description: string }> = {
 
 export function errorSlug(error: LoanError): string {
   return slugs[error];
+}
+
+const bookSlugs: Record<"book-not-found" | "book-on-loan", string> = {
+  "book-not-found": "bok-ikke-funnet",
+  "book-on-loan": "bok-utlant",
+};
+
+/** The failures that send you back to the list. The rest are shown on the form. */
+export function bookErrorSlug(error: keyof typeof bookSlugs): string {
+  return bookSlugs[error];
 }
 
 export function describeError(slug: string | string[] | undefined) {

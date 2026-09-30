@@ -12,14 +12,18 @@ import {
   isLibrarian,
   SIGNED_OUT,
 } from "@/lib/auth";
+import { readBookForm, validateBook } from "@/lib/books";
 import {
+  createBook,
   createBorrower,
   DEMO_RESET_ENABLED,
+  deleteBook,
   getBorrower,
   resetDatabase,
+  updateBook,
 } from "@/lib/db";
-import { errorSlug } from "@/lib/errors";
-import type { RegisterState } from "@/lib/forms";
+import { bookErrorSlug, errorSlug } from "@/lib/errors";
+import type { BookFormState, RegisterState } from "@/lib/forms";
 import { borrowBook, registerReturn } from "@/lib/loans";
 import type { Role } from "@/lib/types";
 
@@ -61,6 +65,104 @@ export async function returnLoanAction(formData: FormData) {
 
   revalidateLoanViews(result.loan.bookId);
   redirect("/admin");
+}
+
+/* -------------------------------------------------------------- catalogue --- */
+
+/** Every screen that lists a title or links to its page. */
+function revalidateCatalogue() {
+  revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath("/admin/boker");
+  revalidatePath("/boker/[id]", "page");
+}
+
+/**
+ * The catalogue is desk work like the rest of the administration. Checked in
+ * every action, not just on the page — an action is a public endpoint whether
+ * or not a page links to it.
+ */
+async function requireLibrarianForAction() {
+  const actor = await getCurrentBorrower();
+  if (!actor || !isLibrarian(actor)) redirect("/logg-inn");
+}
+
+/** Adds a title to the catalogue. */
+export async function createBookAction(
+  _previous: BookFormState,
+  formData: FormData
+): Promise<BookFormState> {
+  await requireLibrarianForAction();
+
+  const values = readBookForm(formData);
+  const checked = validateBook(values);
+  if (!checked.ok) return { values, error: checked.error };
+
+  const result = await createBook(checked.book);
+  if (!result.ok) {
+    return {
+      values,
+      error: { field: "isbn", message: "Et annet eksemplar i katalogen har allerede dette ISBN-et." },
+    };
+  }
+
+  revalidateCatalogue();
+  redirect(`/admin/boker?ny=${encodeURIComponent(result.book.id)}`);
+}
+
+/** Saves changes to a title. The id travels in the form, next to the fields it belongs to. */
+export async function updateBookAction(
+  _previous: BookFormState,
+  formData: FormData
+): Promise<BookFormState> {
+  await requireLibrarianForAction();
+
+  const id = String(formData.get("id") ?? "");
+  const values = readBookForm(formData);
+  const checked = validateBook(values);
+  if (!checked.ok) return { values, error: checked.error };
+
+  const result = await updateBook(id, checked.book);
+
+  if (!result.ok) {
+    if (result.error === "isbn-taken") {
+      return {
+        values,
+        error: { field: "isbn", message: "Et annet eksemplar i katalogen har allerede dette ISBN-et." },
+      };
+    }
+
+    if (result.error === "copies-below-loans") {
+      return {
+        values,
+        error: {
+          field: "copies",
+          message: `${result.onLoan} eksemplarer er ute på lån nå. Antallet kan ikke bli lavere før de er levert tilbake.`,
+        },
+      };
+    }
+
+    // What is left after the two field errors above: the title is already gone.
+    redirect(`/admin/boker?feil=${bookErrorSlug("book-not-found")}`);
+  }
+
+  revalidateCatalogue();
+  redirect(`/admin/boker?lagret=${encodeURIComponent(result.book.id)}`);
+}
+
+/** Removes a title. Refused while a copy is out — see `deleteBook`. */
+export async function deleteBookAction(formData: FormData) {
+  await requireLibrarianForAction();
+
+  const result = await deleteBook(String(formData.get("id") ?? ""));
+
+  if (!result.ok) {
+    redirect(`/admin/boker?feil=${bookErrorSlug(result.error)}`);
+  }
+
+  revalidateCatalogue();
+  revalidatePath("/mine-laan");
+  redirect("/admin/boker?slettet=1");
 }
 
 /**

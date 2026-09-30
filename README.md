@@ -22,6 +22,7 @@ npm run reset-data # tilbake til utgangspunktet i data/seed.json
 | `/boker/[id]` | Detaljer om én tittel, og knappen som låner den |
 | `/mine-laan` | Lånene dine, med frister, status og gebyr |
 | `/admin` | Alle aktive lån, med registrering av retur |
+| `/admin/boker` | Katalogen — opprett, rediger og slett bøker (`/ny`, `/[id]`, `/[id]/slett`) |
 | `/admin/brukere` | Brukerregisteret — alle lånere og bibliotekarer |
 | `/admin/innstillinger` | Innstillinger for demoen, og tilbakestilling av datagrunnlaget |
 | `/logg-inn` | Velg hvem du vil bruke systemet som |

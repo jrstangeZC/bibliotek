@@ -7,11 +7,12 @@ import { buttonVariants } from "@/components/ui/button";
 
 const views = [
   { href: "/admin", label: "Aktive lån" },
+  { href: "/admin/boker", label: "Katalogen" },
   { href: "/admin/brukere", label: "Brukere" },
   { href: "/admin/innstillinger", label: "Innstillinger" },
 ];
 
-/** The two halves of the desk work, switched between without leaving the area. */
+/** The parts of the desk work, switched between without leaving the area. */
 export function AdminNav() {
   const pathname = usePathname();
 
@@ -19,7 +20,12 @@ export function AdminNav() {
     <nav aria-label="Administrasjon" className="mb-8">
       <ul className="flex flex-wrap items-center gap-1">
         {views.map((view) => {
-          const current = pathname === view.href;
+          // "/admin" is the parent of every other view, so it matches exactly;
+          // the rest also cover their sub-pages (the new-book and edit forms).
+          const current =
+            view.href === "/admin"
+              ? pathname === view.href
+              : pathname.startsWith(view.href);
 
           return (
             <li key={view.href}>

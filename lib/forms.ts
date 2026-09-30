@@ -1,3 +1,4 @@
+import type { BookDraft, BookFieldError } from "@/lib/books";
 import type { Role } from "@/lib/types";
 
 /**
@@ -10,3 +11,11 @@ export type RegisterState = {
 };
 
 export const emptyRegisterState: RegisterState = {};
+
+/** Same idea for the book form: the field that failed, and everything as typed. */
+export type BookFormState = {
+  error?: BookFieldError;
+  values?: BookDraft;
+};
+
+export const emptyBookFormState: BookFormState = {};

@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { isActive } from "@/lib/availability";
+import { countActiveLoans, isActive } from "@/lib/availability";
+import { normalizeIsbn, type BookInput } from "@/lib/books";
 import type { Book, Borrower, Database, Loan } from "@/lib/types";
 
 /**
@@ -148,6 +149,97 @@ export async function createBorrower(input: NewBorrower): Promise<Borrower | nul
     database.borrowers.push(borrower);
     await write(database);
     return borrower;
+  });
+}
+
+export type NewBook = BookInput;
+
+export type BookError =
+  | "isbn-taken"
+  | "book-not-found"
+  | "copies-below-loans"
+  | "book-on-loan";
+
+export type BookResult =
+  | { ok: true; book: Book }
+  | {
+      ok: false;
+      error: BookError;
+      /** Copies out right now — set when that is what blocked the write. */
+      onLoan?: number;
+    };
+
+export type DeleteBookResult =
+  | { ok: true; book: Book }
+  | { ok: false; error: "book-not-found" | "book-on-loan"; onLoan?: number };
+
+function isbnTaken(database: Database, isbn: string, exceptId?: string): boolean {
+  const wanted = normalizeIsbn(isbn);
+  return database.books.some(
+    (book) => book.id !== exceptId && normalizeIsbn(book.isbn) === wanted
+  );
+}
+
+/**
+ * Adds a title to the catalogue. Fails when another title already carries the
+ * ISBN — a second copy of the same book is `copies`, not a second row.
+ */
+export async function createBook(input: NewBook): Promise<BookResult> {
+  return enqueue(async () => {
+    const database = await read();
+    if (isbnTaken(database, input.isbn)) return { ok: false, error: "isbn-taken" };
+
+    // "bok-", not "book-": this id lands in a URL, and URLs in this app are Norwegian.
+    const book: Book = { id: `bok-${randomUUID()}`, ...input };
+
+    database.books.push(book);
+    await write(database);
+    return { ok: true, book };
+  });
+}
+
+/**
+ * Rewrites a title's catalogue entry. The stock cannot drop below what is out
+ * on loan right now: availability is worked out as copies minus active loans,
+ * so that would leave a book on the shelf that is in someone's bag.
+ */
+export async function updateBook(id: string, input: NewBook): Promise<BookResult> {
+  return enqueue(async () => {
+    const database = await read();
+    const book = database.books.find((candidate) => candidate.id === id);
+    if (!book) return { ok: false, error: "book-not-found" };
+
+    if (isbnTaken(database, input.isbn, id)) return { ok: false, error: "isbn-taken" };
+
+    const onLoan = countActiveLoans(database.loans, id);
+    if (input.copies < onLoan) {
+      return { ok: false, error: "copies-below-loans", onLoan };
+    }
+
+    Object.assign(book, input);
+    await write(database);
+    return { ok: true, book };
+  });
+}
+
+/**
+ * Removes a title. Refused while any copy is out — the loan would be left
+ * pointing at nothing, with no way to take it back in. Returned loans stay in
+ * the history; the screens already show a loan whose book is gone as
+ * «Ukjent tittel».
+ */
+export async function deleteBook(id: string): Promise<DeleteBookResult> {
+  return enqueue(async () => {
+    const database = await read();
+    const index = database.books.findIndex((candidate) => candidate.id === id);
+    if (index === -1) return { ok: false, error: "book-not-found" };
+
+    const onLoan = countActiveLoans(database.loans, id);
+    if (onLoan > 0) return { ok: false, error: "book-on-loan", onLoan };
+
+    const [book] = database.books.splice(index, 1);
+    await write(database);
+    return { ok: true, book };
   });
 }
 
