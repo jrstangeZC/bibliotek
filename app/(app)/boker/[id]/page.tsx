@@ -68,10 +68,11 @@ export default async function BookPage({
   const error = describeError(feil);
 
   // The copy that comes back first — the answer to "when can I get it?".
+  // Undefined when nothing is on loan.
   const nextDueAt = activeLoans
     .map((loan) => loan.dueAt)
     .sort((a, b) => a.localeCompare(b))
-    .at(0)!;
+    .at(0);
 
   return (
     <>
@@ -123,14 +124,18 @@ export default async function BookPage({
               )}
             </DetailRow>
             <DetailRow label="Første innlevering">
-              <span className="inline-flex items-center gap-1.5">
-                <HugeiconsIcon
-                  icon={Calendar03Icon}
-                  strokeWidth={2}
-                  className="size-4 text-muted-foreground"
-                />
-                {formatDate(nextDueAt)}
-              </span>
+              {nextDueAt ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <HugeiconsIcon
+                    icon={Calendar03Icon}
+                    strokeWidth={2}
+                    className="size-4 text-muted-foreground"
+                  />
+                  {formatDate(nextDueAt)}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">Ingen utlån</span>
+              )}
             </DetailRow>
           </dl>
         </CardContent>
