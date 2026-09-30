@@ -15,7 +15,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="no" className={cn("h-full antialiased", "font-sans", dmSans.variable, notoSerifHeading.variable)}>
-      <body className="flex min-h-full flex-col bg-background text-foreground">
+      {/* Browser extensions inject attributes on <body> before hydration. */}
+      <body suppressHydrationWarning className="flex min-h-full flex-col bg-background text-foreground">
         {children}
       </body>
     </html>

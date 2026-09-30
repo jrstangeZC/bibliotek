@@ -56,7 +56,7 @@ import { listBooks } from "@/lib/loans";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Katalogen – Bibliotek",
+  title: "Bøker (administrasjon) – Bibliotek",
   description: "Opprett, rediger og slett titler i katalogen",
 };
 
@@ -74,7 +74,7 @@ export default async function AdminBooksPage({
   if (!isLibrarian(user)) {
     return (
       <>
-        <PageHeading title="Katalogen" />
+        <PageHeading title="Bøker" />
         <LibrarianRequired user={user} />
       </>
     );
@@ -90,9 +90,9 @@ export default async function AdminBooksPage({
 
   return (
     <>
-      <PageHeading title="Katalogen">
-        Titlene slik lånerne ser dem. Legg til nye bøker, rett opp opplysninger
-        og ta ut bøker som ikke lenger er i samlingen.
+      <PageHeading title="Bøker">
+        Katalogen slik lånerne ser den. Opprett nye bøker, rediger opplysningene
+        og slett bøker som ikke lenger er i samlingen.
       </PageHeading>
       <AdminNav />
 
@@ -153,7 +153,7 @@ export default async function AdminBooksPage({
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Alle titler</CardTitle>
+            <CardTitle>Katalogen</CardTitle>
             <CardDescription>
               {books.length} titler, sortert slik de ble lagt inn.
             </CardDescription>

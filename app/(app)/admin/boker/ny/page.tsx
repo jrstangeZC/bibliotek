@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { AdminNav } from "@/components/admin-nav";
+import { AdminBreadcrumbs } from "@/components/admin-breadcrumbs";
 import { BookForm } from "@/components/book-form";
 import { LibrarianRequired } from "@/components/librarian-required";
 import { PageHeading } from "@/components/page-heading";
@@ -26,10 +26,10 @@ export default async function NewBookPage() {
 
   return (
     <>
+      <AdminBreadcrumbs parents={[{ label: "Bøker", href: "/admin/boker" }]} current="Ny bok" />
       <PageHeading title="Ny bok">
         Fyll inn opplysningene fra bokas kolofon. Ingen felt er valgfrie.
       </PageHeading>
-      <AdminNav />
       <BookForm />
     </>
   );

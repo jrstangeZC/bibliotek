@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AlertCircleIcon, Delete02Icon } from "@hugeicons/core-free-icons";
 
-import { AdminNav } from "@/components/admin-nav";
+import { AdminBreadcrumbs } from "@/components/admin-breadcrumbs";
 import { LibrarianRequired } from "@/components/librarian-required";
 import { PageHeading } from "@/components/page-heading";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -51,10 +51,16 @@ export default async function DeleteBookPage({
 
   return (
     <>
+      <AdminBreadcrumbs
+        parents={[
+          { label: "Bøker", href: "/admin/boker" },
+          { label: book.title, href: `/admin/boker/${book.id}` },
+        ]}
+        current="Slett"
+      />
       <PageHeading title="Slett bok">
         Sletting tar tittelen ut av katalogen for alle, og kan ikke angres.
       </PageHeading>
-      <AdminNav />
 
       {blocked ? (
         <Alert variant="destructive" className="mb-6">

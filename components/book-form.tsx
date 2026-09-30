@@ -142,7 +142,7 @@ export function BookForm({ book, onLoan = 0 }: { book?: Book; onLoan?: number })
         <CardFooter className="gap-3">
           <Button type="submit" disabled={pending}>
             <HugeiconsIcon icon={book ? Tick02Icon : Add01Icon} strokeWidth={2} />
-            {pending ? "Lagrer …" : book ? "Lagre endringer" : "Legg til bok"}
+            {pending ? "Lagrer …" : book ? "Lagre" : "Legg til bok"}
           </Button>
           <Link href="/admin/boker" className={buttonVariants({ variant: "outline" })}>
             Avbryt
