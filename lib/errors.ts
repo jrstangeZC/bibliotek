@@ -1,5 +1,6 @@
 import type { LoanError } from "@/lib/loans";
 import type { RenewalError } from "@/lib/renewals";
+import type { ReservationError } from "@/lib/reservations";
 
 /**
  * A failed borrow or return sends the reader back to the page they came from
@@ -18,12 +19,12 @@ const messages: Record<string, { title: string; description: string }> = {
   "ukjent-bok": {
     title: "Fant ikke boken",
     description:
-      "Tittelen finnes ikke lenger i katalogen. Ingen ting ble lånt ut. Gå tilbake til boklisten og prøv på nytt.",
+      "Tittelen finnes ikke lenger i katalogen. Ingen ting ble registrert. Gå tilbake til boklisten og prøv på nytt.",
   },
   "ingen-eksemplarer": {
     title: "Ingen eksemplarer å låne ut",
     description:
-      "Det siste eksemplaret ble lånt ut i mellomtiden. Lånet ble ikke registrert. Prøv igjen når et eksemplar er levert tilbake.",
+      "Det siste ledige eksemplaret ble lånt ut eller holdt av for noen i kø i mellomtiden. Lånet ble ikke registrert. Reserver boken for å stå i kø.",
   },
   "ukjent-laan": {
     title: "Fant ikke lånet",
@@ -65,6 +66,31 @@ const messages: Record<string, { title: string; description: string }> = {
     description:
       "Noen står i kø for tittelen, så lånet kan ikke forlenges. Fristen er uendret. Lever boken innen datoen som står i listen, så går den videre til neste.",
   },
+  "bok-ledig": {
+    title: "Boken står i hyllen",
+    description:
+      "Et eksemplar er ledig nå, så det er ingen kø å stå i. Ingen reservasjon ble registrert. Lån boken i stedet.",
+  },
+  "allerede-reservert": {
+    title: "Du står allerede i køen",
+    description:
+      "Du har en reservasjon på denne tittelen fra før. Ingen ny ble registrert. Se plassen din under Mine lån.",
+  },
+  "har-boken-allerede": {
+    title: "Du har allerede boken",
+    description:
+      "Et eksemplar av tittelen er lånt ut til deg. Ingen reservasjon ble registrert. Se fristen under Mine lån.",
+  },
+  "for-mange-reservasjoner": {
+    title: "Du har nådd grensen for reservasjoner",
+    description:
+      "Du kan ha tre reservasjoner om gangen. Ingen ny ble registrert. Avbestill en under Mine lån for å reservere denne.",
+  },
+  "ukjent-reservasjon": {
+    title: "Fant ikke reservasjonen",
+    description:
+      "Reservasjonen er allerede avsluttet, kanskje fordi boken ble lånt eller hentefristen gikk ut. Ingen ting ble endret. Oppdater siden og kontroller listen.",
+  },
   "laan-forfalt": {
     title: "Lånet er forfalt",
     description:
@@ -102,4 +128,19 @@ export function renewalErrorSlug(error: RenewalError): string {
 export function describeError(slug: string | string[] | undefined) {
   if (typeof slug !== "string") return null;
   return messages[slug] ?? null;
+}
+
+const reservationSlugs: Record<ReservationError | "reservation-not-found", string> = {
+  "book-not-found": "ukjent-bok",
+  "book-available": "bok-ledig",
+  "already-reserved": "allerede-reservert",
+  "already-borrowed": "har-boken-allerede",
+  "limit-reached": "for-mange-reservasjoner",
+  "reservation-not-found": "ukjent-reservasjon",
+};
+
+export function reservationErrorSlug(
+  error: ReservationError | "reservation-not-found"
+): string {
+  return reservationSlugs[error];
 }

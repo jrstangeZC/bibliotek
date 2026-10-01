@@ -208,3 +208,51 @@ describe("getSettled", () => {
     expect(await readFile(file, "utf8")).toBe(before);
   });
 });
+
+describe("reservation views", () => {
+  it("shows the queue place while waiting, and the deadline once held", async () => {
+    await reserve("borrower-2", OCT_1);
+    await reserve("borrower-3", OCT_2);
+
+    const [waiting] = await loans.listReservationsForBorrower("borrower-3", OCT_2);
+    expect(waiting).toMatchObject({ status: "waiting", position: 2, deadline: null });
+
+    await returnTheCopy();
+    const [held] = await loans.listReservationsForBorrower("borrower-2", OCT_3);
+    expect(held).toMatchObject({
+      status: "ready",
+      position: null,
+      deadline: "2026-10-10T12:00:00.000Z",
+      book: { id: BOOK },
+    });
+    const [moved] = await loans.listReservationsForBorrower("borrower-3", OCT_3);
+    expect(moved.position).toBe(1);
+  });
+
+  it("tells each reader where they stand with a title", async () => {
+    await reserve("borrower-2", OCT_1);
+    await returnTheCopy();
+
+    const holder = await loans.findBook(BOOK, OCT_3, "borrower-2");
+    expect(holder?.viewer).toMatchObject({
+      canBorrow: true,
+      reservation: { status: "ready" },
+    });
+
+    const other = await loans.findBook(BOOK, OCT_3, "borrower-3");
+    expect(other?.viewer).toMatchObject({
+      canBorrow: false,
+      reservation: null,
+      reservationBlock: null,
+    });
+
+    expect((await loans.findBook(BOOK, OCT_3))?.viewer).toBeNull();
+  });
+
+  it("leaves closed reservations out of a borrower's list", async () => {
+    const first = await reserve("borrower-2", OCT_1);
+    await db.cancelReservation(first.id, "borrower-2", OCT_2);
+
+    expect(await loans.listReservationsForBorrower("borrower-2", OCT_2)).toEqual([]);
+  });
+});

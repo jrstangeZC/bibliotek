@@ -7,9 +7,9 @@ import { AlertCircleIcon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 
 import { AdminBreadcrumbs } from "@/components/admin-breadcrumbs";
 import { BookForm } from "@/components/book-form";
+import { BookStatusBadge } from "@/components/book-status";
 import { LibrarianRequired } from "@/components/librarian-required";
 import { PageHeading } from "@/components/page-heading";
-import { Badge } from "@/components/ui/badge";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
 import { findBook } from "@/lib/loans";
 
@@ -69,11 +69,7 @@ export default async function EditBookPage({
         <Fact label="Eksemplarer">{book.copies}</Fact>
         <Fact label="Ledige nå">{book.available}</Fact>
         <Fact label="Status">
-          {book.available > 0 ? (
-            <Badge>Tilgjengelig</Badge>
-          ) : (
-            <Badge variant="secondary">Utlånt</Badge>
-          )}
+          <BookStatusBadge book={book} />
         </Fact>
       </dl>
 

@@ -11,6 +11,7 @@ import {
 
 import { Wordmark } from "@/components/logo";
 import { RoleBadge } from "@/components/role-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -43,7 +44,17 @@ function isCurrent(href: string, pathname: string): boolean {
  */
 const LOGOUT_FORM = "logout";
 
-export function SiteHeader({ user }: { user: Borrower | null }) {
+/**
+ * `readyCount` is how many copies are held for `user` — shown beside «Mine lån»
+ * so a hold is hard to miss from anywhere in the app.
+ */
+export function SiteHeader({
+  user,
+  readyCount = 0,
+}: {
+  user: Borrower | null;
+  readyCount?: number;
+}) {
   const pathname = usePathname();
   const librarian = user?.role === "librarian";
 
@@ -76,6 +87,14 @@ export function SiteHeader({ user }: { user: Borrower | null }) {
                         })}
                       >
                         {item.label}
+                        {item.href === "/mine-laan" && readyCount > 0 ? (
+                          <Badge
+                            className="ml-0.5 h-4.5 min-w-4.5 px-1 tabular-nums"
+                            aria-label={`${readyCount} klar til henting`}
+                          >
+                            {readyCount}
+                          </Badge>
+                        ) : null}
                       </Link>
                     </li>
                   );

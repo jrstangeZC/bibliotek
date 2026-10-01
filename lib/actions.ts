@@ -22,14 +22,28 @@ import {
   resetDatabase,
   updateBook,
 } from "@/lib/db";
-import { bookErrorSlug, errorSlug, renewalErrorSlug } from "@/lib/errors";
+import {
+  bookErrorSlug,
+  errorSlug,
+  renewalErrorSlug,
+  reservationErrorSlug,
+} from "@/lib/errors";
 import type { BookFormState, RegisterState } from "@/lib/forms";
-import { borrowBook, registerReturn, renewLoan } from "@/lib/loans";
+import {
+  borrowBook,
+  cancelReservation,
+  registerReturn,
+  renewLoan,
+  reserveBook,
+} from "@/lib/loans";
 import type { Role } from "@/lib/types";
 
-/** Every screen that shows a loan or an availability count. */
+/**
+ * Every screen that shows a loan, a reservation or an availability count. The
+ * layout is in it too: its banner tells a borrower when a copy is held for them.
+ */
 function revalidateLoanViews(bookId?: string) {
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/mine-laan");
   revalidatePath("/admin");
   if (bookId) revalidatePath(`/boker/${bookId}`);
@@ -84,6 +98,49 @@ export async function renewLoanAction(formData: FormData) {
 
   revalidateLoanViews(result.loan.bookId);
   redirect(`/mine-laan?forlenget=${encodeURIComponent(result.loan.id)}`);
+}
+
+/**
+ * Puts whoever is browsing in the queue for the book on the detail page. The
+ * rules — every copy out, not reserved already, under the limit — are checked
+ * in the write, so a stale page cannot get round them.
+ */
+export async function reserveBookAction(formData: FormData) {
+  const bookId = String(formData.get("bookId") ?? "");
+  const borrower = await getCurrentBorrower();
+  if (!borrower) redirect("/logg-inn");
+
+  const result = await reserveBook(bookId, borrower.id);
+
+  if (!result.ok) {
+    redirect(
+      `/boker/${encodeURIComponent(bookId)}?feil=${reservationErrorSlug(result.error)}`
+    );
+  }
+
+  revalidateLoanViews(bookId);
+  redirect(`/mine-laan?reservert=${encodeURIComponent(result.reservation.id)}`);
+}
+
+/**
+ * Gives up the signed-in borrower's own place in a queue. As with renewals,
+ * whose reservation it is comes from the session, not the form.
+ */
+export async function cancelOwnReservationAction(formData: FormData) {
+  const borrower = await getCurrentBorrower();
+  if (!borrower) redirect("/logg-inn");
+
+  const result = await cancelReservation(
+    String(formData.get("reservationId") ?? ""),
+    borrower.id
+  );
+
+  if (!result.ok) {
+    redirect(`/mine-laan?feil=${reservationErrorSlug(result.error)}`);
+  }
+
+  revalidateLoanViews(result.reservation.bookId);
+  redirect("/mine-laan?avbestilt=1");
 }
 
 /* -------------------------------------------------------------- catalogue --- */

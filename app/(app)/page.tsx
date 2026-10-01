@@ -4,13 +4,14 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowRight01Icon,
   Book02Icon,
+  BookmarkAdd01Icon,
   BookOpen01Icon,
   MoreVerticalIcon,
 } from "@hugeicons/core-free-icons";
 
+import { BookStatusBadge, reservationBlockReasons } from "@/components/book-status";
 import { PageHeading } from "@/components/page-heading";
 import { ColumnHead, IDENTITY_CELL, RecordCell } from "@/components/record-cell";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -39,9 +40,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { borrowBookAction } from "@/lib/actions";
+import { borrowBookAction, reserveBookAction } from "@/lib/actions";
 import { getCurrentBorrower } from "@/lib/auth";
-import { listBooks } from "@/lib/loans";
+import { listBooks, type BookView } from "@/lib/loans";
 
 export const dynamic = "force-dynamic";
 
@@ -50,14 +51,72 @@ export const metadata: Metadata = {
   description: "Alle titlene i samlingen og hvor mange eksemplarer som er ledige",
 };
 
+/**
+ * The first item in a row's menu: borrow when a copy is free (or held for the
+ * reader), reserve when not, and — when neither is open to them — the reserve
+ * item disabled with the reason beside it. Its form lives outside the popup;
+ * see the comment in the table below.
+ */
+function BorrowOrReserveItem({ book }: { book: BookView }) {
+  const standing = book.viewer;
+
+  if (!standing) {
+    return (
+      <DropdownMenuItem render={<Link href="/logg-inn" />}>
+        <HugeiconsIcon icon={BookOpen01Icon} strokeWidth={2} />
+        Logg inn for å låne
+      </DropdownMenuItem>
+    );
+  }
+
+  if (standing.canBorrow) {
+    return (
+      <DropdownMenuItem
+        nativeButton
+        render={<button type="submit" form={`laan-${book.id}`} />}
+      >
+        <HugeiconsIcon icon={BookOpen01Icon} strokeWidth={2} />
+        Lån boken
+      </DropdownMenuItem>
+    );
+  }
+
+  const block = standing.reservationBlock;
+  if (block && block !== "book-available") {
+    // Only the action fades; the reason is what the reader needs to read.
+    return (
+      <DropdownMenuItem disabled className="data-disabled:opacity-100">
+        <HugeiconsIcon icon={BookmarkAdd01Icon} strokeWidth={2} className="opacity-50" />
+        <span className="flex flex-col leading-snug">
+          <span className="opacity-50">Reserver boken</span>
+          <span className="text-xs text-muted-foreground">
+            {reservationBlockReasons[block]}
+          </span>
+        </span>
+      </DropdownMenuItem>
+    );
+  }
+
+  return (
+    <DropdownMenuItem
+      nativeButton
+      render={<button type="submit" form={`reserver-${book.id}`} />}
+    >
+      <HugeiconsIcon icon={BookmarkAdd01Icon} strokeWidth={2} />
+      Reserver boken
+    </DropdownMenuItem>
+  );
+}
+
 export default async function BooksPage() {
-  const [books, viewer] = await Promise.all([listBooks(), getCurrentBorrower()]);
+  const viewer = await getCurrentBorrower();
+  const books = await listBooks(new Date(), viewer?.id ?? null);
 
   return (
     <>
       <PageHeading title="Bøker">
         Hele samlingen, med antall eksemplarer som står ledig akkurat nå. Åpne en
-        tittel for å låne den.
+        tittel for å låne den, eller reserver den hvis alle eksemplarene er ute.
       </PageHeading>
 
       {books.length === 0 ? (
@@ -110,11 +169,7 @@ export default async function BooksPage() {
                       {book.available} av {book.copies}
                     </TableCell>
                     <TableCell className="py-3">
-                      {book.available > 0 ? (
-                        <Badge>Tilgjengelig</Badge>
-                      ) : (
-                        <Badge variant="secondary">Utlånt</Badge>
-                      )}
+                      <BookStatusBadge book={book} />
                     </TableCell>
                     <TableCell className="py-3 pr-(--card-spacing) text-right">
                       {/* The form lives outside the popup. A menu closes the
@@ -124,6 +179,13 @@ export default async function BooksPage() {
                       <form
                         id={`laan-${book.id}`}
                         action={borrowBookAction}
+                        className="hidden"
+                      >
+                        <input type="hidden" name="bookId" value={book.id} />
+                      </form>
+                      <form
+                        id={`reserver-${book.id}`}
+                        action={reserveBookAction}
                         className="hidden"
                       >
                         <input type="hidden" name="bookId" value={book.id} />
@@ -141,30 +203,8 @@ export default async function BooksPage() {
                             strokeWidth={2}
                           />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                          {viewer ? (
-                            <DropdownMenuItem
-                              nativeButton
-                              disabled={book.available === 0}
-                              render={
-                                <button type="submit" form={`laan-${book.id}`} />
-                              }
-                            >
-                              <HugeiconsIcon
-                                icon={BookOpen01Icon}
-                                strokeWidth={2}
-                              />
-                              Lån boken
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem render={<Link href="/logg-inn" />}>
-                              <HugeiconsIcon
-                                icon={BookOpen01Icon}
-                                strokeWidth={2}
-                              />
-                              Logg inn for å låne
-                            </DropdownMenuItem>
-                          )}
+                        <DropdownMenuContent align="end" className="w-64">
+                          <BorrowOrReserveItem book={book} />
                           <DropdownMenuItem
                             render={<Link href={`/boker/${book.id}`} />}
                           >
