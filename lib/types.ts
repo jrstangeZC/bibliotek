@@ -30,6 +30,12 @@ export type Loan = {
   dueAt: string;
   /** `null` while the book is still out. */
   returnedAt: string | null;
+  /**
+   * When the loan was extended, or `null` if it never has been. A loan can be
+   * extended once, so this doubles as the used-up marker. `dueAt` already
+   * includes the extension — there is only ever one due date.
+   */
+  renewedAt: string | null;
 };
 
 /** The shape of `data/seed.json` and `data/db.json`. */

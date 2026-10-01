@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { countActiveLoans, isActive } from "@/lib/availability";
 import { normalizeIsbn, type BookInput } from "@/lib/books";
+import { renewalBlock, renewedDueDate, type RenewalResult } from "@/lib/renewals";
 import type { Book, Borrower, Database, Loan } from "@/lib/types";
 
 /**
@@ -39,6 +40,8 @@ async function read(): Promise<Database> {
     // A working copy written before roles existed would otherwise leave every
     // person role-less. Reading it as a plain borrower keeps it usable.
     for (const borrower of database.borrowers) borrower.role ??= "borrower";
+    // Likewise a loan written before renewals existed has never been renewed.
+    for (const loan of database.loans) loan.renewedAt ??= null;
     return database;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -101,7 +104,7 @@ export async function getLoan(id: string): Promise<Loan | null> {
 
 /* --------------------------------------------------------------- writes --- */
 
-export type NewLoan = Omit<Loan, "id" | "returnedAt">;
+export type NewLoan = Omit<Loan, "id" | "returnedAt" | "renewedAt">;
 
 /**
  * Registers a loan and returns it.
@@ -119,7 +122,12 @@ export async function createLoan(
     const database = await read();
     if (!precondition(database)) return null;
 
-    const loan: Loan = { id: `loan-${randomUUID()}`, ...input, returnedAt: null };
+    const loan: Loan = {
+      id: `loan-${randomUUID()}`,
+      ...input,
+      returnedAt: null,
+      renewedAt: null,
+    };
 
     database.loans.push(loan);
     await write(database);
@@ -288,5 +296,35 @@ export async function markLoanReturned(
     loan.returnedAt = returnedAt;
     await write(database);
     return loan;
+  });
+}
+
+/**
+ * Extends a borrower's own loan by one renewal period (see `lib/renewals.ts`).
+ *
+ * The rules are checked against the loan as the queued write sees it, so a
+ * double click or two open tabs cannot renew the same loan twice. A loan that
+ * belongs to someone else is reported as not found — the caller learns nothing
+ * about loans that are not theirs.
+ */
+export async function renewLoan(
+  id: string,
+  borrowerId: string,
+  now: Date
+): Promise<RenewalResult> {
+  return enqueue(async () => {
+    const database = await read();
+    const loan = database.loans.find(
+      (candidate) => candidate.id === id && candidate.borrowerId === borrowerId
+    );
+    if (!loan) return { ok: false, error: "loan-not-found" };
+
+    const block = renewalBlock(loan, now);
+    if (block) return { ok: false, error: block };
+
+    loan.dueAt = renewedDueDate(loan).toISOString();
+    loan.renewedAt = now.toISOString();
+    await write(database);
+    return { ok: true, loan };
   });
 }

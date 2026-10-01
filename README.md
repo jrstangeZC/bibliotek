@@ -20,7 +20,7 @@ npm run reset-data # tilbake til utgangspunktet i data/seed.json
 | --- | --- |
 | `/` | Hele samlingen, med hvor mange eksemplarer som er ledige |
 | `/boker/[id]` | Detaljer om én tittel, og knappen som låner den |
-| `/mine-laan` | Lånene dine, med frister, status og gebyr |
+| `/mine-laan` | Lånene dine, med frister, status og gebyr — og forlengelse av lån |
 | `/admin` | Alle aktive lån, med registrering av retur |
 | `/admin/boker` | Katalogen — opprett, rediger og slett bøker (`/ny`, `/[id]`, `/[id]/slett`) |
 | `/admin/brukere` | Brukerregisteret — alle lånere og bibliotekarer |
@@ -71,9 +71,14 @@ Cookien `borrowerId` avgjør hvem du er:
   `Book.copies`
 - Gebyret er **10 kr per dag** etter forfall, med tak på **200 kr**. Et innlevert
   lån beholder gebyret det hadde den dagen boken kom tilbake
+- En låner kan forlenge sitt eget lån med **28 dager**, **én gang per lån**.
+  Fristen flyttes (`dueAt`), og `renewedAt` sier når det skjedde. Et forfalt
+  eller innlevert lån kan ikke forlenges — gebyret regnes ut fra fristen, så en
+  forlengelse av et forfalt lån ville slettet gebyret det hadde løpt opp
 
-Reglene ligger i [`lib/fees.ts`](lib/fees.ts) og
-[`lib/availability.ts`](lib/availability.ts), og er dekket av tester. Dager
+Reglene ligger i [`lib/fees.ts`](lib/fees.ts),
+[`lib/availability.ts`](lib/availability.ts) og
+[`lib/renewals.ts`](lib/renewals.ts), og er dekket av tester. Dager
 telles i hele UTC-døgn, så klokkeslettet aldri gjør en innlevering forsinket.
 
 ## Design

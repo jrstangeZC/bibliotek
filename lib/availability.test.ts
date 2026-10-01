@@ -29,6 +29,7 @@ function loan(bookId: string, returnedAt: string | null = null): Loan {
     borrowedAt: "2026-02-01T12:00:00.000Z",
     dueAt: "2026-03-01T12:00:00.000Z",
     returnedAt,
+    renewedAt: null,
   };
 }
 

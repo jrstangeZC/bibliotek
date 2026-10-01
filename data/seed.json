@@ -98,7 +98,8 @@
       "borrowerId": "borrower-1",
       "borrowedAt": "2026-07-06T09:15:00.000Z",
       "dueAt": "2026-08-03T09:15:00.000Z",
-      "returnedAt": null
+      "returnedAt": null,
+      "renewedAt": null
     },
     {
       "id": "loan-2",
@@ -106,7 +107,8 @@
       "borrowerId": "borrower-1",
       "borrowedAt": "2026-08-10T11:40:00.000Z",
       "dueAt": "2026-09-07T11:40:00.000Z",
-      "returnedAt": null
+      "returnedAt": null,
+      "renewedAt": null
     },
     {
       "id": "loan-3",
@@ -114,7 +116,8 @@
       "borrowerId": "borrower-1",
       "borrowedAt": "2026-06-01T13:05:00.000Z",
       "dueAt": "2026-06-29T13:05:00.000Z",
-      "returnedAt": "2026-06-20T10:20:00.000Z"
+      "returnedAt": "2026-06-20T10:20:00.000Z",
+      "renewedAt": null
     },
     {
       "id": "loan-4",
@@ -122,7 +125,8 @@
       "borrowerId": "borrower-2",
       "borrowedAt": "2026-08-01T15:30:00.000Z",
       "dueAt": "2026-08-29T15:30:00.000Z",
-      "returnedAt": null
+      "returnedAt": null,
+      "renewedAt": null
     }
   ]
 }

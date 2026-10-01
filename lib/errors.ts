@@ -1,4 +1,5 @@
 import type { LoanError } from "@/lib/loans";
+import type { RenewalError } from "@/lib/renewals";
 
 /**
  * A failed borrow or return sends the reader back to the page they came from
@@ -49,6 +50,21 @@ const messages: Record<string, { title: string; description: string }> = {
     description:
       "Boken ble registrert som levert av noen andre. Ingen ting er endret, og eksemplaret står i hyllen.",
   },
+  "laan-ikke-funnet": {
+    title: "Fant ikke lånet",
+    description:
+      "Lånet finnes ikke blant dine lån. Fristen er uendret. Oppdater siden og kontroller listen under.",
+  },
+  "allerede-forlenget": {
+    title: "Lånet er allerede forlenget",
+    description:
+      "Et lån kan bare forlenges én gang. Fristen er uendret, så lever boken innen datoen som står i listen.",
+  },
+  "laan-forfalt": {
+    title: "Lånet er forfalt",
+    description:
+      "Et forfalt lån kan ikke forlenges. Fristen er uendret, og gebyret løper til boken er levert tilbake.",
+  },
 };
 
 export function errorSlug(error: LoanError): string {
@@ -63,6 +79,18 @@ const bookSlugs: Record<"book-not-found" | "book-on-loan", string> = {
 /** The failures that send you back to the list. The rest are shown on the form. */
 export function bookErrorSlug(error: keyof typeof bookSlugs): string {
   return bookSlugs[error];
+}
+
+const renewalSlugs: Record<RenewalError, string> = {
+  "loan-not-found": "laan-ikke-funnet",
+  // Shares its wording with the return screen: the book is back either way.
+  "already-returned": "allerede-levert",
+  "already-renewed": "allerede-forlenget",
+  overdue: "laan-forfalt",
+};
+
+export function renewalErrorSlug(error: RenewalError): string {
+  return renewalSlugs[error];
 }
 
 export function describeError(slug: string | string[] | undefined) {

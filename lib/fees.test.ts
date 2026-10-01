@@ -12,6 +12,7 @@ function loan(overrides: Partial<Loan> = {}): Loan {
     borrowedAt: "2026-02-01T12:00:00.000Z",
     dueAt: "2026-03-01T12:00:00.000Z",
     returnedAt: null,
+    renewedAt: null,
     ...overrides,
   };
 }

@@ -22,9 +22,9 @@ import {
   resetDatabase,
   updateBook,
 } from "@/lib/db";
-import { bookErrorSlug, errorSlug } from "@/lib/errors";
+import { bookErrorSlug, errorSlug, renewalErrorSlug } from "@/lib/errors";
 import type { BookFormState, RegisterState } from "@/lib/forms";
-import { borrowBook, registerReturn } from "@/lib/loans";
+import { borrowBook, registerReturn, renewLoan } from "@/lib/loans";
 import type { Role } from "@/lib/types";
 
 /** Every screen that shows a loan or an availability count. */
@@ -65,6 +65,25 @@ export async function returnLoanAction(formData: FormData) {
 
   revalidateLoanViews(result.loan.bookId);
   redirect("/admin");
+}
+
+/**
+ * Extends the signed-in borrower's own loan. The loan id comes from the form,
+ * but whose loan it is comes from the session — `renewLoan` only finds loans
+ * that belong to `borrower`, so a forged id gets "not found".
+ */
+export async function renewLoanAction(formData: FormData) {
+  const borrower = await getCurrentBorrower();
+  if (!borrower) redirect("/logg-inn");
+
+  const result = await renewLoan(String(formData.get("loanId") ?? ""), borrower.id);
+
+  if (!result.ok) {
+    redirect(`/mine-laan?feil=${renewalErrorSlug(result.error)}`);
+  }
+
+  revalidateLoanViews(result.loan.bookId);
+  redirect(`/mine-laan?forlenget=${encodeURIComponent(result.loan.id)}`);
 }
 
 /* -------------------------------------------------------------- catalogue --- */

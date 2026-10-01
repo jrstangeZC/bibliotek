@@ -2,6 +2,7 @@ import { countAvailableCopies, isActive, isBookAvailable } from "@/lib/availabil
 import { addDays, daysBetween, type DateInput } from "@/lib/dates";
 import * as db from "@/lib/db";
 import { calculateLateFee, daysOverdue } from "@/lib/fees";
+import { renewalBlock, type RenewalBlock, type RenewalResult } from "@/lib/renewals";
 import type { Book, Borrower, Loan } from "@/lib/types";
 
 /** How long a loan runs, from the day it is taken out. */
@@ -26,6 +27,8 @@ export type LoanView = Loan & {
   daysOverdue: number;
   daysRemaining: number;
   lateFee: number;
+  /** What stops the borrower renewing this loan today; `null` when nothing does. */
+  renewalBlock: RenewalBlock | null;
   book: Book | null;
   borrower: Borrower | null;
 };
@@ -42,6 +45,7 @@ function toLoanView(
     daysOverdue: daysOverdue(loan, today),
     daysRemaining: Math.max(0, daysBetween(today, loan.dueAt)),
     lateFee: calculateLateFee(loan, today),
+    renewalBlock: renewalBlock(loan, today),
     book: books.find((book) => book.id === loan.bookId) ?? null,
     borrower: borrowers.find((borrower) => borrower.id === loan.borrowerId) ?? null,
   };
@@ -158,4 +162,16 @@ export async function registerReturn(
   if (!loan) return { ok: false, error: "loan-not-found" };
 
   return { ok: true, loan };
+}
+
+/**
+ * Extends `borrowerId`'s own loan by one renewal period. Allowed once per loan,
+ * and not once it is overdue or returned — see `lib/renewals.ts`.
+ */
+export async function renewLoan(
+  loanId: string,
+  borrowerId: string,
+  now: Date = new Date()
+): Promise<RenewalResult> {
+  return db.renewLoan(loanId, borrowerId, now);
 }

@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Book02Icon, BookOpen01Icon } from "@hugeicons/core-free-icons";
+import {
+  AlertCircleIcon,
+  Book02Icon,
+  BookOpen01Icon,
+  CheckmarkCircle02Icon,
+} from "@hugeicons/core-free-icons";
 
 import { LoanStatusCell } from "@/components/loan-status";
 import { PageHeading } from "@/components/page-heading";
 import { ColumnHead, IDENTITY_CELL, RecordCell } from "@/components/record-cell";
+import { RenewLoanMenu } from "@/components/renew-loan-menu";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,8 +37,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireBorrower } from "@/lib/auth";
+import { describeError } from "@/lib/errors";
 import { formatDate, formatKroner } from "@/lib/format";
 import { listLoansForBorrower } from "@/lib/loans";
+import { RENEWAL_DAYS } from "@/lib/renewals";
 
 export const dynamic = "force-dynamic";
 
@@ -40,9 +49,17 @@ export const metadata: Metadata = {
   description: "Bøkene du har lånt, med frister og eventuelle gebyrer",
 };
 
-export default async function MyLoansPage() {
+export default async function MyLoansPage({
+  searchParams,
+}: PageProps<"/mine-laan">) {
   const borrower = await requireBorrower();
-  const loans = await listLoansForBorrower(borrower.id);
+  const [loans, { feil, forlenget }] = await Promise.all([
+    listLoansForBorrower(borrower.id),
+    searchParams,
+  ]);
+  const error = describeError(feil);
+  const renewed =
+    typeof forlenget === "string" ? loans.find((loan) => loan.id === forlenget) : null;
   const outstanding = loans
     .filter((loan) => loan.status !== "returned")
     .reduce((sum, loan) => sum + loan.lateFee, 0);
@@ -51,8 +68,30 @@ export default async function MyLoansPage() {
     <>
       <PageHeading title="Mine lån">
         Lån registrert på {borrower.name}. Gebyret er 10 kr for hver dag en bok
-        er forsinket, og stopper på 200 kr.
+        er forsinket, og stopper på 200 kr. Et lån kan forlenges med{" "}
+        {RENEWAL_DAYS} dager, én gang, så lenge fristen ikke er passert.
       </PageHeading>
+
+      {error ? (
+        <Alert variant="destructive" className="mb-6">
+          <HugeiconsIcon icon={AlertCircleIcon} strokeWidth={2} />
+          <AlertTitle>{error.title}</AlertTitle>
+          <AlertDescription>{error.description}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {renewed ? (
+        <Alert className="mb-6">
+          <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
+          <AlertTitle>
+            «{renewed.book?.title ?? "Ukjent tittel"}» er forlenget
+          </AlertTitle>
+          <AlertDescription>
+            Ny frist er {formatDate(renewed.dueAt)}. Lånet kan ikke forlenges
+            igjen.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {loans.length === 0 ? (
         <Empty className="border bg-card">
@@ -88,7 +127,10 @@ export default async function MyLoansPage() {
                 <TableRow className="hover:bg-transparent">
                   <ColumnHead className="pl-(--card-spacing)">Tittel</ColumnHead>
                   <ColumnHead>Frist</ColumnHead>
-                  <ColumnHead className="pr-(--card-spacing)">Status</ColumnHead>
+                  <ColumnHead>Status</ColumnHead>
+                  <ColumnHead className="pr-(--card-spacing) text-right">
+                    Handling
+                  </ColumnHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -106,10 +148,18 @@ export default async function MyLoansPage() {
                       </RecordCell>
                     </TableCell>
                     <TableCell className="py-3 tabular-nums">
-                      {formatDate(loan.dueAt)}
+                      <div className="flex flex-col leading-snug">
+                        {formatDate(loan.dueAt)}
+                        {loan.renewedAt ? (
+                          <span className="text-muted-foreground">Forlenget</span>
+                        ) : null}
+                      </div>
                     </TableCell>
-                    <TableCell className="py-3 pr-(--card-spacing)">
+                    <TableCell className="py-3">
                       <LoanStatusCell loan={loan} />
+                    </TableCell>
+                    <TableCell className="py-3 pr-(--card-spacing) text-right">
+                      <RenewLoanMenu loan={loan} />
                     </TableCell>
                   </TableRow>
                 ))}
