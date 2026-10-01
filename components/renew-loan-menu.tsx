@@ -17,6 +17,7 @@ const reasons: Record<RenewalBlock, string> = {
   "already-returned": "Boken er levert",
   "already-renewed": "Allerede forlenget én gang",
   overdue: "Fristen er passert",
+  reserved: "Andre venter på boken",
 };
 
 /**

@@ -60,6 +60,11 @@ const messages: Record<string, { title: string; description: string }> = {
     description:
       "Et lån kan bare forlenges én gang. Fristen er uendret, så lever boken innen datoen som står i listen.",
   },
+  "andre-venter": {
+    title: "Andre venter på boken",
+    description:
+      "Noen står i kø for tittelen, så lånet kan ikke forlenges. Fristen er uendret. Lever boken innen datoen som står i listen, så går den videre til neste.",
+  },
   "laan-forfalt": {
     title: "Lånet er forfalt",
     description:
@@ -87,6 +92,7 @@ const renewalSlugs: Record<RenewalError, string> = {
   "already-returned": "allerede-levert",
   "already-renewed": "allerede-forlenget",
   overdue: "laan-forfalt",
+  reserved: "andre-venter",
 };
 
 export function renewalErrorSlug(error: RenewalError): string {

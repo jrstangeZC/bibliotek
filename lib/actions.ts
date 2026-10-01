@@ -156,7 +156,9 @@ export async function updateBookAction(
         values,
         error: {
           field: "copies",
-          message: `${result.onLoan} eksemplarer er ute på lån nå. Antallet kan ikke bli lavere før de er levert tilbake.`,
+          message: result.held
+            ? `${result.onLoan} eksemplarer er ute på lån og ${result.held} er holdt av for noen i kø. Antallet kan ikke bli lavere før de er levert tilbake eller hentet.`
+            : `${result.onLoan} eksemplarer er ute på lån nå. Antallet kan ikke bli lavere før de er levert tilbake.`,
         },
       };
     }

@@ -40,6 +40,14 @@ describe("renewalBlock", () => {
     expect(renewalBlock(returned, "2026-02-26T12:00:00.000Z")).toBe("already-returned");
   });
 
+  it("blocks a loan on a title someone is waiting for", () => {
+    expect(renewalBlock(loan(), "2026-02-20T12:00:00.000Z", true)).toBe("reserved");
+  });
+
+  it("names the overdue loan before the queue", () => {
+    expect(renewalBlock(loan(), "2026-03-05T12:00:00.000Z", true)).toBe("overdue");
+  });
+
   it("names the return first when a loan is both returned and renewed", () => {
     const both = loan({
       renewedAt: "2026-02-20T12:00:00.000Z",

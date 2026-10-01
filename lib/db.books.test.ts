@@ -108,6 +108,7 @@ describe("updateBook", () => {
       ok: false,
       error: "copies-below-loans",
       onLoan: 2,
+      held: 0,
     });
     expect((await db.updateBook(book.id, { ...sult, copies: 2 })).ok).toBe(true);
   });

@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   countActiveLoans,
   countAvailableCopies,
+  countHeldCopies,
   isBookAvailable,
 } from "@/lib/availability";
-import type { Book, Loan } from "@/lib/types";
+import type { Book, Loan, Reservation } from "@/lib/types";
 
 function book(copies: number, id = "book-1"): Book {
   return {
@@ -30,6 +31,23 @@ function loan(bookId: string, returnedAt: string | null = null): Loan {
     dueAt: "2026-03-01T12:00:00.000Z",
     returnedAt,
     renewedAt: null,
+  };
+}
+
+function hold(bookId: string, overrides: Partial<Reservation> = {}): Reservation {
+  counter += 1;
+  return {
+    id: `reservasjon-${counter}`,
+    bookId,
+    borrowerId: "borrower-2",
+    reservedAt: "2026-02-01T12:00:00.000Z",
+    readyAt: "2026-02-10T12:00:00.000Z",
+    closedAt: null,
+    outcome: null,
+    passedToId: null,
+    handledAt: null,
+    notifiedAt: null,
+    ...overrides,
   };
 }
 
@@ -75,6 +93,30 @@ describe("countAvailableCopies", () => {
 
   it("is not affected by loans on other titles", () => {
     expect(countAvailableCopies(book(2), [loan("book-2")])).toBe(2);
+  });
+});
+
+describe("countHeldCopies", () => {
+  it("counts open reservations with a copy set aside", () => {
+    expect(countHeldCopies([hold("book-1"), hold("book-1"), hold("book-2")], "book-1")).toBe(2);
+  });
+
+  it("ignores places in the queue with no copy yet, and holds that have ended", () => {
+    const reservations = [
+      hold("book-1", { readyAt: null }),
+      hold("book-1", { closedAt: "2026-02-12T12:00:00.000Z", outcome: "collected" }),
+    ];
+    expect(countHeldCopies(reservations, "book-1")).toBe(0);
+  });
+});
+
+describe("countAvailableCopies with holds", () => {
+  it("does not offer a held copy to anyone else", () => {
+    expect(countAvailableCopies(book(2), [loan("book-1")], [hold("book-1")])).toBe(0);
+  });
+
+  it("leaves the rest of the stock free", () => {
+    expect(countAvailableCopies(book(3), [], [hold("book-1")])).toBe(2);
   });
 });
 

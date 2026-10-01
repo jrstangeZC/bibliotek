@@ -1,9 +1,10 @@
-import { countAvailableCopies, isActive, isBookAvailable } from "@/lib/availability";
+import { countAvailableCopies, countHeldCopies, isActive } from "@/lib/availability";
 import { addDays, daysBetween, type DateInput } from "@/lib/dates";
 import * as db from "@/lib/db";
 import { calculateLateFee, daysOverdue } from "@/lib/fees";
 import { renewalBlock, type RenewalBlock, type RenewalResult } from "@/lib/renewals";
-import type { Book, Borrower, Loan } from "@/lib/types";
+import { canBorrow, hasWaiting, waitingQueue } from "@/lib/reservations";
+import type { Book, Borrower, Database, Loan, Reservation } from "@/lib/types";
 
 /** How long a loan runs, from the day it is taken out. */
 export const LOAN_PERIOD_DAYS = 28;
@@ -33,52 +34,67 @@ export type LoanView = Loan & {
   borrower: Borrower | null;
 };
 
-function toLoanView(
-  loan: Loan,
-  today: DateInput,
-  books: Book[],
-  borrowers: Borrower[]
-): LoanView {
+function toLoanView(loan: Loan, today: DateInput, database: Database): LoanView {
   return {
     ...loan,
     status: getLoanStatus(loan, today),
     daysOverdue: daysOverdue(loan, today),
     daysRemaining: Math.max(0, daysBetween(today, loan.dueAt)),
     lateFee: calculateLateFee(loan, today),
-    renewalBlock: renewalBlock(loan, today),
-    book: books.find((book) => book.id === loan.bookId) ?? null,
-    borrower: borrowers.find((borrower) => borrower.id === loan.borrowerId) ?? null,
+    renewalBlock: renewalBlock(
+      loan,
+      today,
+      hasWaiting(database.reservations, loan.bookId)
+    ),
+    book: database.books.find((book) => book.id === loan.bookId) ?? null,
+    borrower:
+      database.borrowers.find((borrower) => borrower.id === loan.borrowerId) ?? null,
   };
 }
 
 async function describe(loans: Loan[], today: DateInput): Promise<LoanView[]> {
-  const [books, borrowers] = await Promise.all([db.getBooks(), db.getBorrowers()]);
-  return loans.map((loan) => toLoanView(loan, today, books, borrowers));
+  const database = await db.getSettled(today);
+  return loans.map((loan) => toLoanView(loan, today, database));
 }
 
 /* --------------------------------------------------------- availability --- */
 
-/** A book plus how many copies are on the shelf right now. */
+/** A book plus where its copies are right now, and who is queueing for it. */
 export type BookView = Book & {
+  /** On the shelf, free for anyone to borrow. */
   available: number;
+  /** In someone's bag. */
   onLoan: number;
+  /** On the pickup shelf, set aside for someone in the queue. */
+  held: number;
+  /** People in the queue without a copy set aside yet. */
+  waiting: number;
 };
 
-function toBookView(book: Book, loans: Loan[]): BookView {
-  const available = countAvailableCopies(book, loans);
-  return { ...book, available, onLoan: book.copies - available };
+function toBookView(book: Book, database: Database): BookView {
+  const available = countAvailableCopies(book, database.loans, database.reservations);
+  const held = countHeldCopies(database.reservations, book.id);
+  return {
+    ...book,
+    available,
+    held,
+    onLoan: book.copies - available - held,
+    waiting: waitingQueue(database.reservations, book.id).length,
+  };
 }
 
-export async function listBooks(): Promise<BookView[]> {
-  const [books, loans] = await Promise.all([db.getBooks(), db.getLoans()]);
-  return books.map((book) => toBookView(book, loans));
+export async function listBooks(today: DateInput = new Date()): Promise<BookView[]> {
+  const database = await db.getSettled(today);
+  return database.books.map((book) => toBookView(book, database));
 }
 
-export async function findBook(id: string): Promise<BookView | null> {
-  const book = await db.getBook(id);
-  if (!book) return null;
-
-  return toBookView(book, await db.getLoans());
+export async function findBook(
+  id: string,
+  today: DateInput = new Date()
+): Promise<BookView | null> {
+  const database = await db.getSettled(today);
+  const book = database.books.find((candidate) => candidate.id === id);
+  return book ? toBookView(book, database) : null;
 }
 
 /** The active loans on one title, so a detail page can say when a copy is back. */
@@ -118,9 +134,19 @@ export type LoanResult =
   | { ok: true; loan: Loan }
   | { ok: false; error: LoanError };
 
+export type ReturnResult =
+  | {
+      ok: true;
+      loan: Loan;
+      /** Who the returned copy was set aside for, if anyone was queueing. */
+      heldFor: Reservation | null;
+    }
+  | { ok: false; error: LoanError };
+
 /**
  * Lends out a copy of `bookId` to `borrowerId` for the standard loan period.
- * Fails when the title is unknown or every copy is already out.
+ * Fails when the title is unknown, or every copy is out or held for someone
+ * else. A copy held for `borrowerId` is theirs to take.
  */
 export async function borrowBook(
   bookId: string,
@@ -141,7 +167,7 @@ export async function borrowBook(
     // cannot take the last copy at the same moment.
     (database) => {
       const current = database.books.find((candidate) => candidate.id === bookId);
-      return current !== undefined && isBookAvailable(current, database.loans);
+      return current !== undefined && canBorrow(database, current, borrowerId);
     }
   );
 
@@ -149,19 +175,22 @@ export async function borrowBook(
   return { ok: true, loan };
 }
 
-/** Takes a book back into the collection. */
+/**
+ * Takes a book back into the collection — or, if anyone is queueing for it,
+ * onto the pickup shelf for the first in line.
+ */
 export async function registerReturn(
   loanId: string,
   now: Date = new Date()
-): Promise<LoanResult> {
+): Promise<ReturnResult> {
   const existing = await db.getLoan(loanId);
   if (!existing) return { ok: false, error: "loan-not-found" };
   if (!isActive(existing)) return { ok: false, error: "already-returned" };
 
-  const loan = await db.markLoanReturned(loanId, now.toISOString());
-  if (!loan) return { ok: false, error: "loan-not-found" };
+  const returned = await db.markLoanReturned(loanId, now.toISOString());
+  if (!returned) return { ok: false, error: "loan-not-found" };
 
-  return { ok: true, loan };
+  return { ok: true, ...returned };
 }
 
 /**
