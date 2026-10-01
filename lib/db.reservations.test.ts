@@ -290,3 +290,85 @@ describe("the desk's lists", () => {
     ]);
   });
 });
+
+describe("hold notices", () => {
+  it("emails the first in line when a copy comes back", async () => {
+    await reserve("borrower-2", OCT_1);
+    await returnTheCopy();
+
+    const outbox = await db.getOutbox();
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]).toMatchObject({
+      to: "jonas.berge@example.no",
+      subject: "«The Little Prince» er klar til henting",
+      createdAt: OCT_3.toISOString(),
+    });
+  });
+
+  it("does not email someone who switched notices off", async () => {
+    const jonas = (await db.getBorrower("borrower-2"))!;
+    await db.updateBorrower(jonas.id, { ...jonas, notifyByEmail: false });
+    await reserve("borrower-2", OCT_1);
+    await returnTheCopy();
+
+    expect(await db.getOutbox()).toEqual([]);
+  });
+
+  it("sends a hold passed on by expiry when the daily job runs, not on a read", async () => {
+    await reserve("borrower-2", OCT_1);
+    await reserve("borrower-3", OCT_2);
+    await returnTheCopy();
+    const later = new Date("2026-10-12T06:00:00.000Z");
+
+    await loans.listOpenReservations(later);
+    expect(await db.getOutbox()).toHaveLength(1);
+
+    const sent = await db.settleAndNotify(later);
+    expect(sent).toMatchObject([{ to: "aisha.rahman@example.no" }]);
+    expect(await db.settleAndNotify(later)).toEqual([]);
+  });
+});
+
+describe("updateBorrower", () => {
+  it("saves a new name, address and notice choice", async () => {
+    const result = await db.updateBorrower("borrower-2", {
+      name: "Jonas B. Berge",
+      email: "jonas@example.no",
+      role: "borrower",
+      notifyByEmail: false,
+    });
+
+    expect(result).toMatchObject({ ok: true, borrower: { name: "Jonas B. Berge" } });
+    expect(await db.getBorrower("borrower-2")).toMatchObject({
+      email: "jonas@example.no",
+      notifyByEmail: false,
+    });
+  });
+
+  it("refuses an address someone else has, whatever its case", async () => {
+    const jonas = (await db.getBorrower("borrower-2"))!;
+    expect(
+      await db.updateBorrower(jonas.id, { ...jonas, email: "Marit.Hoel@example.no" })
+    ).toEqual({ ok: false, error: "email-taken" });
+  });
+
+  it("will not leave the library without a librarian", async () => {
+    const ingrid = (await db.getBorrower("borrower-4"))!;
+    expect(await db.updateBorrower(ingrid.id, { ...ingrid, role: "borrower" })).toEqual({
+      ok: false,
+      error: "last-librarian",
+    });
+
+    const marit = (await db.getBorrower("borrower-1"))!;
+    await db.updateBorrower(marit.id, { ...marit, role: "librarian" });
+    expect((await db.updateBorrower(ingrid.id, { ...ingrid, role: "borrower" })).ok).toBe(true);
+  });
+
+  it("reports an unknown person", async () => {
+    const marit = (await db.getBorrower("borrower-1"))!;
+    expect(await db.updateBorrower("laaner-finnes-ikke", marit)).toEqual({
+      ok: false,
+      error: "borrower-not-found",
+    });
+  });
+});

@@ -59,9 +59,11 @@ function database(overrides: Partial<Database> = {}): Database {
       name: id,
       email: `${id}@example.no`,
       role: "borrower" as const,
+      notifyByEmail: true,
     })),
     loans: [],
     reservations: [],
+    outbox: [],
     ...overrides,
   };
 }

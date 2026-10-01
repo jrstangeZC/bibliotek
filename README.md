@@ -23,9 +23,11 @@ npm run reset-data # tilbake til utgangspunktet i data/seed.json
 | `/mine-laan` | Lånene og reservasjonene dine, med frister, status og gebyr — og forlengelse av lån |
 | `/admin` | Alle aktive lån, med registrering av retur |
 | `/admin/reservasjoner` | Køene, og eksemplarer på hentehylla som må flyttes |
+| `/admin/utboks` | E-postene systemet har sendt (`/[id]` viser én) |
 | `/admin/boker` | Katalogen — opprett, rediger og slett bøker (`/ny`, `/[id]`, `/[id]/slett`) |
-| `/admin/brukere` | Brukerregisteret — alle lånere og bibliotekarer |
+| `/admin/brukere` | Brukerregisteret — alle lånere og bibliotekarer, med redigering (`/[id]`) |
 | `/admin/innstillinger` | Innstillinger for demoen, og tilbakestilling av datagrunnlaget |
+| `/profil` | Navnet, e-postadressen og e-postvarslene dine |
 | `/logg-inn` | Velg hvem du vil bruke systemet som |
 | `/stil` | Stilguiden — alle komponenter og tilstander på én side |
 
@@ -34,8 +36,27 @@ npm run reset-data # tilbake til utgangspunktet i data/seed.json
 ```
 GET  /api/books              GET  /api/books/[id]
 GET  /api/loans/mine         POST /api/loans
-POST /api/loans/[id]/return
+POST /api/loans/[id]/return  POST /api/jobs/reservasjoner
 ```
+
+`POST /api/jobs/reservasjoner` er for en daglig cron (se E-post under). Den krever
+`Authorization: Bearer $CRON_SECRET`, og finnes ikke når `CRON_SECRET` mangler.
+
+## E-post
+
+Det finnes ingen e-posttjener. Når et reservert eksemplar holdes av for noen,
+legges en e-post i `outbox` i datafila, og bibliotekaren kan lese den under
+`/admin/utboks`. Hver bruker velger selv om hen vil ha slike e-poster (`/profil`),
+og valget er på som standard.
+
+[`lib/mail.ts`](lib/mail.ts) er det eneste stedet som avgjør hva som sendes. Hvert
+hold får én e-post, og den sendes alltid sammen med en skriving, aldri ved
+lesing. Et hold som går videre fordi det forrige gikk ut, lagres først ved neste
+skriving. Derfor finnes jobbruten: kjør den daglig, så venter ikke e-posten på at
+noen låner eller leverer noe. Banneret i appen fungerer uansett med en gang.
+
+For å sende ekte e-post: behold `queueHoldNotices` som den er, og la et
+leveringssteg lese nye meldinger fra utboksen og gi dem til en leverandør.
 
 ## Datalaget
 
@@ -66,6 +87,9 @@ den filen og ingen andre.
 En person er enten `borrower` eller `librarian`. Bibliotekarer ser
 administrasjonen; alle andre får en forklaring og veien videre i stedet.
 
+En bruker kan endre navn, e-post og varsler for seg selv under `/profil`.
+Bibliotekaren kan endre alt for alle, også rollen, men den siste bibliotekaren
+kan ikke miste rollen — da ville ingen kommet inn i administrasjonen igjen.
 
 Cookien `borrowerId` avgjør hvem du er:
 

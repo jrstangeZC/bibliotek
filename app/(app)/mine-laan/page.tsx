@@ -114,7 +114,7 @@ export default async function MyLoansPage({
           </AlertTitle>
           <AlertDescription>
             Du er nr. {reserved.position} i køen. Når et eksemplar kommer inn,
-            holdes det av til deg i {HOLD_DAYS} dager, og du får beskjed her.
+            holdes det av til deg i {HOLD_DAYS} dager, og du får beskjed.
           </AlertDescription>
         </Alert>
       ) : null}

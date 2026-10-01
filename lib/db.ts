@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { countActiveLoans, countHeldCopies, isActive, isActiveHold } from "@/lib/availability";
 import { normalizeIsbn, type BookInput } from "@/lib/books";
+import { queueHoldNotices } from "@/lib/mail";
 import { renewalBlock, renewedDueDate, type RenewalResult } from "@/lib/renewals";
 import {
   closeReservation,
@@ -16,7 +17,14 @@ import {
   type CancelReservationResult,
   type ReservationResult,
 } from "@/lib/reservations";
-import type { Book, Borrower, Database, Loan, Reservation } from "@/lib/types";
+import type {
+  Book,
+  Borrower,
+  Database,
+  Loan,
+  OutboxMessage,
+  Reservation,
+} from "@/lib/types";
 
 /**
  * The only module that touches disk. Everything else goes through these
@@ -53,8 +61,11 @@ async function read(): Promise<Database> {
     for (const borrower of database.borrowers) borrower.role ??= "borrower";
     // Likewise a loan written before renewals existed has never been renewed.
     for (const loan of database.loans) loan.renewedAt ??= null;
-    // And a working copy from before reservations has an empty queue.
+    // And a working copy from before reservations has an empty queue, an
+    // empty outbox, and people who get the default: email when a copy is held.
     database.reservations ??= [];
+    database.outbox ??= [];
+    for (const borrower of database.borrowers) borrower.notifyByEmail ??= true;
     return database;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -67,6 +78,16 @@ async function read(): Promise<Database> {
 
 async function write(database: Database): Promise<void> {
   await writeFile(DB_FILE, `${JSON.stringify(database, null, 2)}\n`, "utf8");
+}
+
+/**
+ * Stores a write that may have set copies aside. The «ready» email for any new
+ * hold goes out with it (see `queueHoldNotices`) — here, and not on a read, so
+ * each hold is noticed once and a page view never sends anything.
+ */
+async function save(database: Database, now: Date | string): Promise<void> {
+  queueHoldNotices(database, now);
+  await write(database);
 }
 
 /**
@@ -126,6 +147,17 @@ export async function getLoan(id: string): Promise<Loan | null> {
   return loans.find((loan) => loan.id === id) ?? null;
 }
 
+/** Every message the app has "sent", newest first. */
+export async function getOutbox(): Promise<OutboxMessage[]> {
+  const outbox = await enqueue(async () => (await read()).outbox);
+  return outbox.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function getOutboxMessage(id: string): Promise<OutboxMessage | null> {
+  const outbox = await getOutbox();
+  return outbox.find((message) => message.id === id) ?? null;
+}
+
 /** Every reservation ever made, open and closed, unsettled. */
 export async function getReservations(): Promise<Reservation[]> {
   return enqueue(async () => (await read()).reservations);
@@ -182,7 +214,7 @@ export async function createLoan(
     );
     if (reservation) closeReservation(database, reservation, "collected", input.borrowedAt);
 
-    await write(database);
+    await save(database, input.borrowedAt);
     return loan;
   });
 }
@@ -209,6 +241,41 @@ export async function createBorrower(input: NewBorrower): Promise<Borrower | nul
     database.borrowers.push(borrower);
     await write(database);
     return borrower;
+  });
+}
+
+export type BorrowerError = "borrower-not-found" | "email-taken" | "last-librarian";
+
+export type BorrowerResult =
+  | { ok: true; borrower: Borrower }
+  | { ok: false; error: BorrowerError };
+
+/**
+ * Rewrites a person's entry. The email must stay unique, as on enrolment. And
+ * the last librarian cannot be made a plain borrower: nobody would be left who
+ * could open the administration to undo it.
+ */
+export async function updateBorrower(id: string, input: NewBorrower): Promise<BorrowerResult> {
+  return enqueue(async () => {
+    const database = await read();
+    const borrower = database.borrowers.find((candidate) => candidate.id === id);
+    if (!borrower) return { ok: false, error: "borrower-not-found" };
+
+    const taken = database.borrowers.some(
+      (other) => other.id !== id && other.email.toLowerCase() === input.email.toLowerCase()
+    );
+    if (taken) return { ok: false, error: "email-taken" };
+
+    const otherLibrarians = database.borrowers.filter(
+      (other) => other.id !== id && other.role === "librarian"
+    );
+    if (borrower.role === "librarian" && input.role !== "librarian" && otherLibrarians.length === 0) {
+      return { ok: false, error: "last-librarian" };
+    }
+
+    Object.assign(borrower, input);
+    await write(database);
+    return { ok: true, borrower };
   });
 }
 
@@ -286,7 +353,7 @@ export async function updateBook(
 
     Object.assign(book, input);
     settleReservations(database, now);
-    await write(database);
+    await save(database, now);
     return { ok: true, book };
   });
 }
@@ -321,7 +388,7 @@ export async function deleteBook(
     }
 
     const [book] = database.books.splice(index, 1);
-    await write(database);
+    await save(database, now);
     return { ok: true, book };
   });
 }
@@ -379,7 +446,7 @@ export async function markLoanReturned(
 
     loan.returnedAt = returnedAt;
     const readied = settleReservations(database, returnedAt);
-    await write(database);
+    await save(database, returnedAt);
     return {
       loan,
       heldFor: readied.find((reservation) => reservation.bookId === loan.bookId) ?? null,
@@ -412,7 +479,7 @@ export async function renewLoan(
 
     loan.dueAt = renewedDueDate(loan).toISOString();
     loan.renewedAt = now.toISOString();
-    await write(database);
+    await save(database, now);
     return { ok: true, loan };
   });
 }
@@ -453,7 +520,7 @@ export async function createReservation(
     };
 
     database.reservations.push(reservation);
-    await write(database);
+    await save(database, now);
     return { ok: true, reservation };
   });
 }
@@ -481,7 +548,7 @@ export async function cancelReservation(
     if (!reservation) return { ok: false, error: "reservation-not-found" };
 
     const passedTo = closeReservation(database, reservation, "cancelled", now);
-    await write(database);
+    await save(database, now);
     return { ok: true, reservation, passedTo };
   });
 }
@@ -498,7 +565,23 @@ export async function markHoldHandled(id: string, now: Date): Promise<Reservatio
     if (!reservation || !needsHandling(reservation)) return null;
 
     reservation.handledAt = now.toISOString();
-    await write(database);
+    await save(database, now);
     return reservation;
+  });
+}
+
+/**
+ * Settles the reservations and stores the result, sending the «ready» email
+ * for any hold that started since the last write. A hold that passes on
+ * because the one before it ran out is only stored by the next write; this is
+ * what a daily job calls so that email does not wait for someone to borrow or
+ * return something. Returns the messages it queued.
+ */
+export async function settleAndNotify(now: Date): Promise<OutboxMessage[]> {
+  return enqueue(async () => {
+    const database = await load(now);
+    const queued = queueHoldNotices(database, now);
+    await write(database);
+    return queued;
   });
 }

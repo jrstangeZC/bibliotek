@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { CheckmarkCircle02Icon, UserIcon } from "@hugeicons/core-free-icons";
+import {
+  AlertCircleIcon,
+  CheckmarkCircle02Icon,
+  MoreVerticalIcon,
+  UserEdit01Icon,
+  UserIcon,
+} from "@hugeicons/core-free-icons";
 
 import { AdminNav } from "@/components/admin-nav";
 import { LibrarianRequired } from "@/components/librarian-required";
@@ -17,6 +24,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -27,6 +41,7 @@ import {
 import { isActive } from "@/lib/availability";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
 import { getBorrowers, getLoans } from "@/lib/db";
+import { describeError } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -48,12 +63,14 @@ export default async function BorrowersPage({
     );
   }
 
-  const [people, loans, { ny }] = await Promise.all([
+  const [people, loans, { ny, lagret, feil }] = await Promise.all([
     getBorrowers(),
     getLoans(),
     searchParams,
   ]);
   const enrolled = typeof ny === "string" ? people.find((p) => p.id === ny) : null;
+  const saved = typeof lagret === "string" ? people.find((p) => p.id === lagret) : null;
+  const error = describeError(feil);
 
   return (
     <>
@@ -62,6 +79,27 @@ export default async function BorrowersPage({
         Registeret rommer både lånere og bibliotekarer.
       </PageHeading>
       <AdminNav />
+
+      {error ? (
+        <Alert variant="destructive" className="mb-6">
+          <HugeiconsIcon icon={AlertCircleIcon} strokeWidth={2} />
+          <AlertTitle>{error.title}</AlertTitle>
+          <AlertDescription>{error.description}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {saved ? (
+        <Alert className="mb-6">
+          <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
+          <AlertTitle>{saved.name} er oppdatert</AlertTitle>
+          <AlertDescription>
+            Endringene gjelder med én gang.{" "}
+            {saved.notifyByEmail
+              ? `Varsler om reserverte bøker går til ${saved.email}.`
+              : "Personen får ikke e-post om reserverte bøker."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {enrolled ? (
         <Alert className="mb-6">
@@ -91,8 +129,9 @@ export default async function BorrowersPage({
                 <ColumnHead className="pl-(--card-spacing)">Navn</ColumnHead>
                 <ColumnHead>Rolle</ColumnHead>
                 <ColumnHead className="text-right">Ute nå</ColumnHead>
+                <ColumnHead className="text-right">Lån totalt</ColumnHead>
                 <ColumnHead className="pr-(--card-spacing) text-right">
-                  Lån totalt
+                  Handling
                 </ColumnHead>
               </TableRow>
             </TableHeader>
@@ -116,8 +155,26 @@ export default async function BorrowersPage({
                     <TableCell className="py-3 text-right font-medium tabular-nums">
                       {out}
                     </TableCell>
-                    <TableCell className="py-3 pr-(--card-spacing) text-right tabular-nums text-muted-foreground">
+                    <TableCell className="py-3 text-right tabular-nums text-muted-foreground">
                       {mine.length}
+                    </TableCell>
+                    <TableCell className="py-3 pr-(--card-spacing) text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+                          aria-label={`Handlinger for ${person.name}`}
+                        >
+                          <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem
+                            render={<Link href={`/admin/brukere/${person.id}`} />}
+                          >
+                            <HugeiconsIcon icon={UserEdit01Icon} strokeWidth={2} />
+                            Rediger
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 );

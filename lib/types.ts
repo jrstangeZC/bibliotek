@@ -20,6 +20,8 @@ export type Borrower = {
   name: string;
   email: string;
   role: Role;
+  /** Whether to email this person when a reserved copy is held for them. */
+  notifyByEmail: boolean;
 };
 
 export type Loan = {
@@ -71,10 +73,27 @@ export type Reservation = {
   notifiedAt: string | null;
 };
 
+/**
+ * An email the app has sent. There is no mail server: messages land here and
+ * the desk can read them under «Utboks». `lib/mail.ts` is where a real
+ * provider would plug in.
+ */
+export type OutboxMessage = {
+  id: string;
+  to: string;
+  toName: string;
+  subject: string;
+  body: string;
+  createdAt: string;
+  /** The hold the message is about. */
+  reservationId: string;
+};
+
 /** The shape of `data/seed.json` and `data/db.json`. */
 export type Database = {
   books: Book[];
   borrowers: Borrower[];
   loans: Loan[];
   reservations: Reservation[];
+  outbox: OutboxMessage[];
 };

@@ -10,6 +10,7 @@ const views = [
   { href: "/admin/reservasjoner", label: "Reservasjoner" },
   { href: "/admin/boker", label: "Bøker" },
   { href: "/admin/brukere", label: "Brukere" },
+  { href: "/admin/utboks", label: "Utboks" },
   { href: "/admin/innstillinger", label: "Innstillinger" },
 ];
 

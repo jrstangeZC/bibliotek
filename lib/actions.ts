@@ -13,6 +13,7 @@ import {
   SIGNED_OUT,
 } from "@/lib/auth";
 import { readBookForm, validateBook } from "@/lib/books";
+import { EMAIL_TAKEN_MESSAGE, readBorrowerForm, validateBorrower } from "@/lib/borrowers";
 import {
   createBook,
   createBorrower,
@@ -21,6 +22,7 @@ import {
   getBorrower,
   resetDatabase,
   updateBook,
+  updateBorrower,
 } from "@/lib/db";
 import {
   bookErrorSlug,
@@ -28,7 +30,7 @@ import {
   renewalErrorSlug,
   reservationErrorSlug,
 } from "@/lib/errors";
-import type { BookFormState, RegisterState } from "@/lib/forms";
+import type { BookFormState, BorrowerFormState } from "@/lib/forms";
 import {
   borrowBook,
   cancelReservation,
@@ -37,7 +39,6 @@ import {
   renewLoan,
   reserveBook,
 } from "@/lib/loans";
-import type { Role } from "@/lib/types";
 
 /**
  * Every screen that shows a loan, a reservation or an availability count. The
@@ -336,49 +337,96 @@ export async function signOutAction() {
   redirect("/logg-inn");
 }
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 /**
  * Enrols a new person in the register. This is desk work — a librarian signing
  * someone up — not self-service registration, so it survives the move to real
  * authentication.
  */
 export async function registerBorrowerAction(
-  _previous: RegisterState,
+  _previous: BorrowerFormState,
   formData: FormData
-): Promise<RegisterState> {
-  const actor = await getCurrentBorrower();
-  if (!actor || !isLibrarian(actor)) redirect("/logg-inn");
+): Promise<BorrowerFormState> {
+  await requireLibrarianForAction();
 
-  const name = String(formData.get("name") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
-  const role: Role = formData.get("role") === "librarian" ? "librarian" : "borrower";
-  const values = { name, email, role };
+  const values = readBorrowerForm(formData);
+  const error = validateBorrower(values);
+  if (error) return { values, error };
 
-  if (name === "") {
-    return { values, error: { field: "name", message: "Skriv inn navnet på låneren." } };
-  }
-
-  if (!EMAIL_PATTERN.test(email)) {
-    return {
-      values,
-      error: { field: "email", message: "Skriv en gyldig e-postadresse." },
-    };
-  }
-
-  const borrower = await createBorrower({ name, email, role });
-
+  const borrower = await createBorrower(values);
   if (!borrower) {
-    return {
-      values,
-      error: {
-        field: "email",
-        message: "Adressen er allerede i bruk av en annen låner.",
-      },
-    };
+    return { values, error: { field: "email", message: EMAIL_TAKEN_MESSAGE } };
   }
 
   revalidatePath("/admin/brukere");
   revalidatePath("/logg-inn");
   redirect(`/admin/brukere?ny=${encodeURIComponent(borrower.id)}`);
+}
+
+/**
+ * Saves the desk's changes to anyone's entry, role included. The id travels in
+ * the form, next to the fields it belongs to.
+ */
+export async function updateBorrowerAction(
+  _previous: BorrowerFormState,
+  formData: FormData
+): Promise<BorrowerFormState> {
+  await requireLibrarianForAction();
+
+  const id = String(formData.get("id") ?? "");
+  const values = readBorrowerForm(formData);
+  const error = validateBorrower(values);
+  if (error) return { values, error };
+
+  const result = await updateBorrower(id, values);
+
+  if (!result.ok) {
+    if (result.error === "email-taken") {
+      return { values, error: { field: "email", message: EMAIL_TAKEN_MESSAGE } };
+    }
+    if (result.error === "last-librarian") {
+      return {
+        values,
+        error: {
+          field: "role",
+          message:
+            "Dette er den siste bibliotekaren. Gjør en annen til bibliotekar først, ellers kommer ingen inn i administrasjonen.",
+        },
+      };
+    }
+    redirect("/admin/brukere?feil=bruker-ikke-funnet");
+  }
+
+  // The name shows in the header and on every loan; refresh the lot.
+  revalidatePath("/", "layout");
+  redirect(`/admin/brukere?lagret=${encodeURIComponent(result.borrower.id)}`);
+}
+
+/**
+ * Saves a person's own profile. Who it is comes from the session, and the role
+ * is kept as it is — the form does not offer it, and a forged field must not
+ * be able to promote anyone.
+ */
+export async function updateOwnProfileAction(
+  _previous: BorrowerFormState,
+  formData: FormData
+): Promise<BorrowerFormState> {
+  const actor = await getCurrentBorrower();
+  if (!actor) redirect("/logg-inn");
+
+  const values = { ...readBorrowerForm(formData), role: actor.role };
+  const error = validateBorrower(values);
+  if (error) return { values, error };
+
+  const result = await updateBorrower(actor.id, values);
+
+  if (!result.ok) {
+    if (result.error === "email-taken") {
+      return { values, error: { field: "email", message: EMAIL_TAKEN_MESSAGE } };
+    }
+    // The role never changes here, so the only failure left is a vanished entry.
+    redirect("/logg-inn?feil=ukjent-laaner");
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/profil?lagret=1");
 }

@@ -6,6 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowDown01Icon,
   Logout02Icon,
+  UserEdit01Icon,
   UserSwitchIcon,
 } from "@hugeicons/core-free-icons";
 
@@ -108,7 +109,7 @@ export function SiteHeader({
               <DropdownMenu>
                 <DropdownMenuTrigger
                   className={buttonVariants({ variant: "ghost", size: "sm" })}
-                  aria-label={`Innlogget som ${user.name}. Bytt bruker eller logg ut`}
+                  aria-label={`Innlogget som ${user.name}. Profil, bytt bruker eller logg ut`}
                 >
                   {user.name}
                   <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} />
@@ -124,6 +125,10 @@ export function SiteHeader({
                     <RoleBadge role={user.role} />
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem render={<Link href="/profil" />}>
+                    <HugeiconsIcon icon={UserEdit01Icon} strokeWidth={2} />
+                    Min profil
+                  </DropdownMenuItem>
                   <DropdownMenuItem render={<Link href="/logg-inn" />}>
                     <HugeiconsIcon icon={UserSwitchIcon} strokeWidth={2} />
                     Bytt bruker

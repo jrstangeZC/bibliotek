@@ -1,16 +1,17 @@
 import type { BookDraft, BookFieldError } from "@/lib/books";
-import type { Role } from "@/lib/types";
+import type { BorrowerDraft, BorrowerFieldError } from "@/lib/borrowers";
 
 /**
- * The state the enrolment form hands back to itself between submissions: which
- * field was wrong, and what was typed, so nothing is lost on a rejection.
+ * The state a person's form hands back to itself between submissions — on
+ * enrolment, at the desk, or on their own profile: which field was wrong, and
+ * what was typed, so nothing is lost on a rejection.
  */
-export type RegisterState = {
-  error?: { field: "name" | "email"; message: string };
-  values?: { name: string; email: string; role: Role };
+export type BorrowerFormState = {
+  error?: BorrowerFieldError;
+  values?: BorrowerDraft;
 };
 
-export const emptyRegisterState: RegisterState = {};
+export const emptyBorrowerFormState: BorrowerFormState = {};
 
 /** Same idea for the book form: the field that failed, and everything as typed. */
 export type BookFormState = {

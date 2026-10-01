@@ -70,25 +70,29 @@
       "id": "borrower-1",
       "name": "Marit Hoel",
       "email": "marit.hoel@example.no",
-      "role": "borrower"
+      "role": "borrower",
+      "notifyByEmail": true
     },
     {
       "id": "borrower-2",
       "name": "Jonas Berge",
       "email": "jonas.berge@example.no",
-      "role": "borrower"
+      "role": "borrower",
+      "notifyByEmail": true
     },
     {
       "id": "borrower-3",
       "name": "Aisha Rahman",
       "email": "aisha.rahman@example.no",
-      "role": "borrower"
+      "role": "borrower",
+      "notifyByEmail": true
     },
     {
       "id": "borrower-4",
       "name": "Ingrid Sæther",
       "email": "ingrid.sather@example.no",
-      "role": "librarian"
+      "role": "librarian",
+      "notifyByEmail": true
     }
   ],
   "loans": [
@@ -129,5 +133,6 @@
       "renewedAt": null
     }
   ],
-  "reservations": []
+  "reservations": [],
+  "outbox": []
 }
