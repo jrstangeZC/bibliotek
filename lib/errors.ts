@@ -91,6 +91,11 @@ const messages: Record<string, { title: string; description: string }> = {
     description:
       "Reservasjonen er allerede avsluttet, kanskje fordi boken ble lånt eller hentefristen gikk ut. Ingen ting ble endret. Oppdater siden og kontroller listen.",
   },
+  "hold-handtert": {
+    title: "Eksemplaret er allerede håndtert",
+    description:
+      "Noen har allerede kvittert for dette eksemplaret. Ingen ting ble endret. Kontroller listen under.",
+  },
   "laan-forfalt": {
     title: "Lånet er forfalt",
     description:

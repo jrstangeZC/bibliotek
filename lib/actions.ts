@@ -32,6 +32,7 @@ import type { BookFormState, RegisterState } from "@/lib/forms";
 import {
   borrowBook,
   cancelReservation,
+  markHoldHandled,
   registerReturn,
   renewLoan,
   reserveBook,
@@ -46,6 +47,7 @@ function revalidateLoanViews(bookId?: string) {
   revalidatePath("/", "layout");
   revalidatePath("/mine-laan");
   revalidatePath("/admin");
+  revalidatePath("/admin/reservasjoner");
   if (bookId) revalidatePath(`/boker/${bookId}`);
 }
 
@@ -78,7 +80,10 @@ export async function returnLoanAction(formData: FormData) {
   }
 
   revalidateLoanViews(result.loan.bookId);
-  redirect("/admin");
+  // The copy goes on the pickup shelf, not back among the rest — say so.
+  redirect(
+    result.heldFor ? `/admin?holdt=${encodeURIComponent(result.heldFor.id)}` : "/admin"
+  );
 }
 
 /**
@@ -141,6 +146,32 @@ export async function cancelOwnReservationAction(formData: FormData) {
 
   revalidateLoanViews(result.reservation.bookId);
   redirect("/mine-laan?avbestilt=1");
+}
+
+/** Cancels anyone's reservation from the desk. */
+export async function cancelReservationAction(formData: FormData) {
+  await requireLibrarianForAction();
+
+  const result = await cancelReservation(String(formData.get("reservationId") ?? ""), null);
+
+  if (!result.ok) {
+    redirect(`/admin/reservasjoner?feil=${reservationErrorSlug(result.error)}`);
+  }
+
+  revalidateLoanViews(result.reservation.bookId);
+  redirect("/admin/reservasjoner?avbestilt=1");
+}
+
+/** The desk confirms it has moved a copy whose hold ended uncollected. */
+export async function markHoldHandledAction(formData: FormData) {
+  await requireLibrarianForAction();
+
+  const reservation = await markHoldHandled(String(formData.get("reservationId") ?? ""));
+
+  if (!reservation) redirect("/admin/reservasjoner?feil=hold-handtert");
+
+  revalidatePath("/admin/reservasjoner");
+  redirect("/admin/reservasjoner?handtert=1");
 }
 
 /* -------------------------------------------------------------- catalogue --- */

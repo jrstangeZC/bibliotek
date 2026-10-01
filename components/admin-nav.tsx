@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 
 const views = [
   { href: "/admin", label: "Aktive lån" },
+  { href: "/admin/reservasjoner", label: "Reservasjoner" },
   { href: "/admin/boker", label: "Bøker" },
   { href: "/admin/brukere", label: "Brukere" },
   { href: "/admin/innstillinger", label: "Innstillinger" },

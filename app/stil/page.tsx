@@ -450,12 +450,25 @@ export default function StylePage() {
             <Badge variant="destructive">Forfalt</Badge>
             <Badge variant="outline">Bibliotekar</Badge>
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Badge>Klar til henting</Badge>
+            <Badge variant="secondary">Venter</Badge>
+            <Badge variant="secondary">Holdt av</Badge>
+            <Badge variant="secondary">Ikke hentet</Badge>
+          </div>
           <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
             Merkene står alltid sammen med tekst som forklarer hva de gjelder,
             og brukes aldri som eneste bærer av informasjon. De tre første er
-            tilstander som endrer seg. Det siste er{" "}
+            tilstander som endrer seg. Det fjerde er{" "}
             <code className="font-mono text-xs">outline</code>, som merker noe
             som ligger fast — en rolle, ikke en status.
+          </p>
+          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+            Den andre raden er reservasjoner. «Klar til henting» får
+            aksentfargen fordi låneren skal gjøre noe; resten er nøytrale.
+            «Holdt av» står på en tittel der eksemplaret er i huset, men satt
+            av til noen andre. Fristen for henting vises alltid ved siden av,
+            som dato.
           </p>
         </Section>
 

@@ -8,6 +8,7 @@ import {
   hasWaiting,
   holdDeadline,
   isOpen,
+  needsHandling,
   openReservationFor,
   queuePosition,
   reservationBlock,
@@ -280,6 +281,84 @@ export async function registerReturn(
   if (!returned) return { ok: false, error: "loan-not-found" };
 
   return { ok: true, ...returned };
+}
+
+/** Every open reservation in the library: held copies first, then the queues. */
+export async function listOpenReservations(
+  today: DateInput = new Date()
+): Promise<ReservationView[]> {
+  const database = await db.getSettled(today);
+  return database.reservations
+    .filter(isOpen)
+    .map((reservation) => toReservationView(reservation, database))
+    .sort(
+      (a, b) =>
+        byUrgency(a, b) ||
+        (a.book?.title ?? "").localeCompare(b.book?.title ?? "", "nb") ||
+        (a.position ?? 0) - (b.position ?? 0)
+    );
+}
+
+/** One open reservation, or `null` once it has been collected, cancelled or run out. */
+export async function findOpenReservation(
+  id: string,
+  today: DateInput = new Date()
+): Promise<ReservationView | null> {
+  const database = await db.getSettled(today);
+  const reservation = database.reservations.find(
+    (candidate) => candidate.id === id && isOpen(candidate)
+  );
+  return reservation ? toReservationView(reservation, database) : null;
+}
+
+/**
+ * A copy on the pickup shelf under the wrong name: its hold ran out or was
+ * cancelled, and the desk has not moved it yet.
+ */
+export type HoldToHandle = {
+  id: string;
+  outcome: "expired" | "cancelled";
+  closedAt: string;
+  /** The last day the copy could have been collected. */
+  deadline: string;
+  book: Book | null;
+  /** Who the copy was set aside for. */
+  borrower: Borrower | null;
+  /** Who it is set aside for now — `null` means back on the shelf. */
+  passedTo: Borrower | null;
+};
+
+/** Copies the desk has to move, the longest-standing first. */
+export async function listHoldsToHandle(
+  today: DateInput = new Date()
+): Promise<HoldToHandle[]> {
+  const database = await db.getSettled(today);
+  const person = (id: string | undefined) =>
+    database.borrowers.find((borrower) => borrower.id === id) ?? null;
+
+  return database.reservations
+    .filter(needsHandling)
+    .sort((a, b) => a.closedAt!.localeCompare(b.closedAt!))
+    .map((reservation) => ({
+      id: reservation.id,
+      outcome: reservation.outcome as HoldToHandle["outcome"],
+      closedAt: reservation.closedAt!,
+      deadline: holdDeadline(reservation.readyAt!).toISOString(),
+      book: database.books.find((book) => book.id === reservation.bookId) ?? null,
+      borrower: person(reservation.borrowerId),
+      passedTo: person(
+        database.reservations.find((next) => next.id === reservation.passedToId)
+          ?.borrowerId
+      ),
+    }));
+}
+
+/** Records that the desk has moved the copy of a hold that ended uncollected. */
+export async function markHoldHandled(
+  reservationId: string,
+  now: Date = new Date()
+): Promise<Reservation | null> {
+  return db.markHoldHandled(reservationId, now);
 }
 
 /** Puts `borrowerId` in the queue for a title with every copy out. */

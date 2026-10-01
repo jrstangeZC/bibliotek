@@ -5,6 +5,7 @@ import {
   AlertCircleIcon,
   ArrowTurnBackwardIcon,
   Book02Icon,
+  BookmarkCheck01Icon,
   CheckmarkCircle02Icon,
   MoreVerticalIcon,
 } from "@hugeicons/core-free-icons";
@@ -54,7 +55,7 @@ import { returnLoanAction } from "@/lib/actions";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
 import { describeError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
-import { listActiveLoans } from "@/lib/loans";
+import { findOpenReservation, listActiveLoans } from "@/lib/loans";
 
 export const dynamic = "force-dynamic";
 
@@ -74,8 +75,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     );
   }
 
-  const [loans, { feil }] = await Promise.all([listActiveLoans(), searchParams]);
+  const [loans, { feil, holdt }] = await Promise.all([listActiveLoans(), searchParams]);
   const error = describeError(feil);
+  const held = typeof holdt === "string" ? await findOpenReservation(holdt) : null;
   const overdue = loans.filter((loan) => loan.status === "overdue").length;
 
   return (
@@ -91,6 +93,22 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           <HugeiconsIcon icon={AlertCircleIcon} strokeWidth={2} />
           <AlertTitle>{error.title}</AlertTitle>
           <AlertDescription>{error.description}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {held ? (
+        <Alert className="mb-6">
+          <HugeiconsIcon icon={BookmarkCheck01Icon} strokeWidth={2} />
+          <AlertTitle>
+            Sett «{held.book?.title ?? "Ukjent tittel"}» til side for{" "}
+            {held.borrower?.name ?? "ukjent låner"}
+          </AlertTitle>
+          <AlertDescription>
+            Returen er registrert, men eksemplaret skal ikke tilbake i hyllen.{" "}
+            {held.borrower?.name ?? "Låneren"} står først i køen og har til{" "}
+            {held.deadline ? formatDate(held.deadline) : "fristen"} på å hente
+            det.
+          </AlertDescription>
         </Alert>
       ) : null}
 

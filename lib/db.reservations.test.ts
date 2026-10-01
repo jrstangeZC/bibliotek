@@ -256,3 +256,37 @@ describe("reservation views", () => {
     expect(await loans.listReservationsForBorrower("borrower-2", OCT_2)).toEqual([]);
   });
 });
+
+describe("the desk's lists", () => {
+  it("lists a given-up hold with where the copy goes, until it is handled", async () => {
+    const first = await reserve("borrower-2", OCT_1);
+    await reserve("borrower-3", OCT_2);
+    await returnTheCopy();
+    await db.cancelReservation(first.id, "borrower-2", OCT_3);
+
+    expect(await loans.listHoldsToHandle(OCT_3)).toMatchObject([
+      {
+        id: first.id,
+        outcome: "cancelled",
+        borrower: { id: "borrower-2" },
+        passedTo: { id: "borrower-3" },
+      },
+    ]);
+
+    await loans.markHoldHandled(first.id, OCT_3);
+    expect(await loans.listHoldsToHandle(OCT_3)).toEqual([]);
+  });
+
+  it("puts held copies above the queues", async () => {
+    await loans.borrowBook("book-2", "borrower-3", OCT_1);
+    await reserve("borrower-2", OCT_1, "book-2");
+    await reserve("borrower-3", OCT_2);
+    await returnTheCopy();
+
+    const open = await loans.listOpenReservations(OCT_3);
+    expect(open.map((r) => [r.bookId, r.status])).toEqual([
+      [BOOK, "ready"],
+      ["book-2", "waiting"],
+    ]);
+  });
+});

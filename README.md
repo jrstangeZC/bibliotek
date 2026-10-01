@@ -19,9 +19,10 @@ npm run reset-data # tilbake til utgangspunktet i data/seed.json
 | Adresse | Hva den gjør |
 | --- | --- |
 | `/` | Hele samlingen, med hvor mange eksemplarer som er ledige |
-| `/boker/[id]` | Detaljer om én tittel, og knappen som låner den |
-| `/mine-laan` | Lånene dine, med frister, status og gebyr — og forlengelse av lån |
+| `/boker/[id]` | Detaljer om én tittel, og knappen som låner eller reserverer den |
+| `/mine-laan` | Lånene og reservasjonene dine, med frister, status og gebyr — og forlengelse av lån |
 | `/admin` | Alle aktive lån, med registrering av retur |
+| `/admin/reservasjoner` | Køene, og eksemplarer på hentehylla som må flyttes |
 | `/admin/boker` | Katalogen — opprett, rediger og slett bøker (`/ny`, `/[id]`, `/[id]/slett`) |
 | `/admin/brukere` | Brukerregisteret — alle lånere og bibliotekarer |
 | `/admin/innstillinger` | Innstillinger for demoen, og tilbakestilling av datagrunnlaget |
@@ -47,6 +48,15 @@ Ingen database. [`lib/db.ts`](lib/db.ts) er den eneste modulen som rører disk:
 Alle operasjoner går gjennom én kø, slik at ingen leser en halvskrevet fil og to
 samtidige utlån ikke kan ta samme siste eksemplar.
 
+**Å lese skriver aldri.** Et hold som går ut, skal gå videre til neste i køen
+uten at noen trykker på noe. Det skjer ved at reservasjonene gjøres opp
+(`settleReservations` i [`lib/reservations.ts`](lib/reservations.ts)) hver gang
+noe leses eller skrives. Oppgjøret gir samme svar uansett når det kjøres — neste
+persons hold regnes fra det øyeblikket det forrige gikk ut, ikke fra «nå» — så
+sidene kan regne det ut i minnet, og den neste skrivingen lagrer nøyaktig det
+de viste. Ser du i `data/db.json` og finner et hold som skulle vært utløpt, er
+det derfor ingen feil: det står der til neste skriving.
+
 ## Roller og innlogging
 
 Det finnes ingen passord. [`lib/auth.ts`](lib/auth.ts) er den ene skjøten hele
@@ -55,6 +65,7 @@ den filen og ingen andre.
 
 En person er enten `borrower` eller `librarian`. Bibliotekarer ser
 administrasjonen; alle andre får en forklaring og veien videre i stedet.
+
 
 Cookien `borrowerId` avgjør hvem du er:
 
@@ -76,9 +87,20 @@ Cookien `borrowerId` avgjør hvem du er:
   eller innlevert lån kan ikke forlenges — gebyret regnes ut fra fristen, så en
   forlengelse av et forfalt lån ville slettet gebyret det hadde løpt opp
 
+- Er alle eksemplarene ute, kan en låner **reservere** tittelen. Køen er
+  først-til-mølla. En låner kan ha **3 åpne reservasjoner** om gangen, og kan
+  ikke reservere en bok som står ledig eller som hen allerede har lånt
+- Når et eksemplar kommer inn, **holdes det av** for den første i køen i
+  **7 dager**, til og med fristdagen. Ingen andre kan låne det. Hentes det
+  ikke, går det videre til neste i køen, eller tilbake i hyllen om køen er tom.
+  Skranken får beskjed under `/admin/reservasjoner` om eksemplarer som må
+  flyttes
+- Et lån **kan ikke forlenges** mens noen venter i kø for tittelen
+
 Reglene ligger i [`lib/fees.ts`](lib/fees.ts),
-[`lib/availability.ts`](lib/availability.ts) og
-[`lib/renewals.ts`](lib/renewals.ts), og er dekket av tester. Dager
+[`lib/availability.ts`](lib/availability.ts),
+[`lib/renewals.ts`](lib/renewals.ts) og
+[`lib/reservations.ts`](lib/reservations.ts), og er dekket av tester. Dager
 telles i hele UTC-døgn, så klokkeslettet aldri gjør en innlevering forsinket.
 
 ## Design
