@@ -105,3 +105,36 @@ export function toDraft(book: Book): BookDraft {
     copies: String(book.copies),
   };
 }
+
+/* ---------------------------------------------------------------- search --- */
+
+/** Case and diacritics are noise in a search box: «saint-exupery» finds «Saint-Exupéry». */
+function fold(text: string): string {
+  return text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("nb");
+}
+
+/**
+ * Whether a book answers a search: every word must appear somewhere in the
+ * title, the author or the year, so «tolkien 1954» narrows instead of widening.
+ * An ISBN is matched on its digits alone, whichever way it was hyphenated.
+ */
+export function matchesBookQuery(book: Book, query: string): boolean {
+  const terms = fold(query).split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return true;
+
+  const text = fold(`${book.title} ${book.author} ${book.year}`);
+  const isbn = normalizeIsbn(book.isbn);
+
+  return terms.every((term) => {
+    if (text.includes(term)) return true;
+
+    // Three characters at least, or «9» would match every ISBN in the catalogue.
+    const digits = normalizeIsbn(term);
+    return digits.length >= 3 && isbn.includes(digits);
+  });
+}
+
+/** Shelf order: by title the way a Norwegian reader alphabetises, so «Ærlig» files after «Zorro». */
+export function byTitle(a: Book, b: Book): number {
+  return a.title.localeCompare(b.title, "nb", { sensitivity: "base", numeric: true });
+}

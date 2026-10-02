@@ -234,7 +234,10 @@ where the surface begins and ends; a rule inside it just chops the surface up.
   `DropdownMenuContent`, with the item pointing at it via the native `form`
   attribute (`<button type="submit" form="...">`, plus `nativeButton` on the
   item). The popup unmounts the instant an item is pressed, and a form torn out
-  of the tree mid-submit never completes. The trigger needs
+  of the tree mid-submit never completes. A `<button>` shrinks to its content
+  even as a flex box, so `DropdownMenuItem` carries `w-full` — that keeps the
+  hover fill on a submitting item as wide as on a link item. Re-apply it if
+  `shadcn` regenerates the primitive. The trigger needs
   an `aria-label` naming the record — "Handlinger for «Sult»" — because the icon
   alone says nothing about which row it belongs to. Order the menu with the
   everyday action first, then the edit and history items, then a

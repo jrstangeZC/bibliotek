@@ -1,23 +1,26 @@
 import type { Metadata } from "next";
+import Form from "next/form";
 import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Add01Icon,
   AlertCircleIcon,
-  ArrowRight01Icon,
   Book02Icon,
+  BookOpen01Icon,
   CheckmarkCircle02Icon,
   Delete02Icon,
   MoreVerticalIcon,
   PencilEdit01Icon,
+  Search01Icon,
+  ViewIcon,
 } from "@hugeicons/core-free-icons";
 
 import { AdminNav } from "@/components/admin-nav";
+import { BookStatusBadge } from "@/components/book-status";
 import { LibrarianRequired } from "@/components/librarian-required";
 import { PageHeading } from "@/components/page-heading";
 import { ColumnHead, IDENTITY_CELL, RecordCell } from "@/components/record-cell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -43,6 +46,12 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
   Table,
   TableBody,
   TableCell,
@@ -50,8 +59,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
+import { byTitle, matchesBookQuery } from "@/lib/books";
 import { describeError } from "@/lib/errors";
-import { listBooks } from "@/lib/loans";
+import { listBooks, type BookView } from "@/lib/loans";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +77,70 @@ const NewBookLink = ({ className }: { className?: string }) => (
   </Link>
 );
 
+/** Where the copies that are not on the shelf have gone, in a few words. */
+function circulation(book: BookView): string {
+  const parts = [
+    book.onLoan > 0 ? `${book.onLoan} ute` : null,
+    book.held > 0 ? `${book.held} holdt av` : null,
+    book.waiting > 0 ? `${book.waiting} i kø` : null,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" · ") : "Alle inne";
+}
+
+/**
+ * The row's overflow menu. Delete is offered but disabled while copies are out,
+ * with the reason on the item itself — the librarian learns why here instead
+ * of on a confirmation page that cannot confirm.
+ */
+function BookActions({ book }: { book: BookView }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+        aria-label={`Handlinger for «${book.title}»`}
+      >
+        <HugeiconsIcon icon={MoreVerticalIcon} strokeWidth={2} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuItem render={<Link href={`/admin/boker/${book.id}`} />}>
+          <HugeiconsIcon icon={PencilEdit01Icon} strokeWidth={2} />
+          Rediger
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href={`/boker/${book.id}`} />}>
+          <HugeiconsIcon icon={ViewIcon} strokeWidth={2} />
+          Vis slik lånerne ser den
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {book.onLoan > 0 ? (
+          <DropdownMenuItem
+            disabled
+            className="items-start text-muted-foreground data-disabled:opacity-100"
+          >
+            <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} className="mt-0.5" />
+            <span className="flex flex-col leading-snug">
+              Slett …
+              <span className="text-xs">
+                {book.onLoan === 1
+                  ? "Mulig når det utlånte eksemplaret er levert"
+                  : `Mulig når de ${book.onLoan} utlånte er levert`}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            variant="destructive"
+            render={<Link href={`/admin/boker/${book.id}/slett`} />}
+          >
+            <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+            Slett …
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default async function AdminBooksPage({
   searchParams,
 }: PageProps<"/admin/boker">) {
@@ -80,13 +154,18 @@ export default async function AdminBooksPage({
     );
   }
 
-  const [books, { feil, ny, lagret, slettet }] = await Promise.all([
+  const [catalogue, { feil, ny, lagret, slettet, q }] = await Promise.all([
     listBooks(),
     searchParams,
   ]);
+  const books = catalogue.toSorted(byTitle);
+  const query = typeof q === "string" ? q.trim() : "";
+  const matches = books.filter((book) => matchesBookQuery(book, query));
   const error = describeError(feil);
   const created = typeof ny === "string" ? books.find((book) => book.id === ny) : null;
   const saved = typeof lagret === "string" ? books.find((book) => book.id === lagret) : null;
+  // The row just added or edited stays marked, so the eye finds it in the list.
+  const touched = (created ?? saved)?.id;
 
   return (
     <>
@@ -155,97 +234,127 @@ export default async function AdminBooksPage({
           <CardHeader>
             <CardTitle>Katalogen</CardTitle>
             <CardDescription>
-              {books.length} titler, sortert slik de ble lagt inn.
+              {books.length} titler i alfabetisk rekkefølge. Klikk en tittel for
+              å endre den.
             </CardDescription>
             <CardAction>
               <NewBookLink />
             </CardAction>
           </CardHeader>
+
+          <CardContent className="flex flex-col gap-3">
+            {/* A GET form: the search lives in the URL, so it survives a reload
+                and comes back with the back button after an edit. */}
+            <Form action="/admin/boker" role="search">
+              <label htmlFor="katalogsok" className="sr-only">
+                Søk i katalogen
+              </label>
+              <InputGroup>
+                <InputGroupAddon>
+                  <HugeiconsIcon icon={Search01Icon} strokeWidth={2} />
+                </InputGroupAddon>
+                <InputGroupInput
+                  id="katalogsok"
+                  name="q"
+                  type="search"
+                  defaultValue={query}
+                  placeholder="Tittel, forfatter, år eller ISBN"
+                  autoComplete="off"
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton type="submit" variant="secondary" size="sm">
+                    Søk
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+            </Form>
+            {query && matches.length > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {matches.length} av {books.length} titler passer med «{query}».{" "}
+                <Link
+                  href="/admin/boker"
+                  className="font-medium text-foreground underline underline-offset-2"
+                >
+                  Vis alle
+                </Link>
+              </p>
+            ) : null}
+          </CardContent>
+
           <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <ColumnHead className="pl-(--card-spacing)">Tittel</ColumnHead>
-                  <ColumnHead>ISBN</ColumnHead>
-                  <ColumnHead className="text-right">Eksemplarer</ColumnHead>
-                  <ColumnHead className="pr-(--card-spacing) text-right">
-                    Handling
-                  </ColumnHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {books.map((book) => (
-                  <TableRow key={book.id}>
-                    <TableCell
-                      className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}
-                    >
-                      <RecordCell
-                        icon={Book02Icon}
-                        name={book.title}
-                        href={`/admin/boker/${book.id}`}
-                      >
-                        {book.author} · {book.year}
-                      </RecordCell>
-                    </TableCell>
-                    <TableCell className="py-3 tabular-nums text-muted-foreground">
-                      {book.isbn}
-                    </TableCell>
-                    <TableCell className="py-3 text-right tabular-nums">
-                      <span className="font-medium">{book.copies}</span>
-                      {book.onLoan > 0 ? (
-                        <Badge variant="secondary" className="ml-2">
-                          {book.onLoan} ute
-                        </Badge>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="py-3 pr-(--card-spacing) text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          className={buttonVariants({
-                            variant: "ghost",
-                            size: "icon-sm",
-                          })}
-                          aria-label={`Handlinger for «${book.title}»`}
-                        >
-                          <HugeiconsIcon
-                            icon={MoreVerticalIcon}
-                            strokeWidth={2}
-                          />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                          <DropdownMenuItem
-                            render={<Link href={`/admin/boker/${book.id}`} />}
-                          >
-                            <HugeiconsIcon
-                              icon={PencilEdit01Icon}
-                              strokeWidth={2}
-                            />
-                            Rediger
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            render={<Link href={`/boker/${book.id}`} />}
-                          >
-                            <HugeiconsIcon
-                              icon={ArrowRight01Icon}
-                              strokeWidth={2}
-                            />
-                            Vis i katalogen
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            render={<Link href={`/admin/boker/${book.id}/slett`} />}
-                          >
-                            <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
-                            Slett …
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            {matches.length === 0 ? (
+              <Empty className="py-8">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <HugeiconsIcon icon={Search01Icon} strokeWidth={2} />
+                  </EmptyMedia>
+                  <EmptyTitle>Ingen treff</EmptyTitle>
+                  <EmptyDescription>
+                    Ingen titler passer med «{query}». Prøv et kortere ord, bare
+                    etternavnet til forfatteren eller sifrene i ISBN-en.
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <Link
+                    href="/admin/boker"
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                  >
+                    Vis alle bøker
+                  </Link>
+                </EmptyContent>
+              </Empty>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <ColumnHead className="pl-(--card-spacing)">Tittel</ColumnHead>
+                    <ColumnHead className="text-right">Ledige</ColumnHead>
+                    <ColumnHead>Status</ColumnHead>
+                    <ColumnHead className="pr-(--card-spacing) text-right">
+                      Handling
+                    </ColumnHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {matches.map((book) => (
+                    <TableRow
+                      key={book.id}
+                      data-state={book.id === touched ? "selected" : undefined}
+                      // Half strength, or the row swallows its own `bg-muted` icon tile.
+                      className="data-[state=selected]:bg-muted/60"
+                    >
+                      <TableCell
+                        className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}
+                      >
+                        <RecordCell
+                          icon={book.available > 0 ? Book02Icon : BookOpen01Icon}
+                          name={book.title}
+                          href={`/admin/boker/${book.id}`}
+                        >
+                          {book.author} · {book.year} · ISBN {book.isbn}
+                        </RecordCell>
+                      </TableCell>
+                      <TableCell className="py-3 text-right tabular-nums">
+                        <div className="flex flex-col leading-snug">
+                          <span className="font-medium">
+                            {book.available} av {book.copies}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {circulation(book)}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <BookStatusBadge book={book} />
+                      </TableCell>
+                      <TableCell className="py-3 pr-(--card-spacing) text-right">
+                        <BookActions book={book} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       )}

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  byTitle,
   emptyBookDraft,
+  matchesBookQuery,
   MAX_COPIES,
   normalizeIsbn,
   validateBook,
@@ -85,5 +87,50 @@ describe("normalizeIsbn", () => {
   it("drops hyphens and spaces and upper-cases the check digit", () => {
     expect(normalizeIsbn("978-82 05-39001-4")).toBe("9788205390014");
     expect(normalizeIsbn("080442957x")).toBe("080442957X");
+  });
+});
+
+describe("matchesBookQuery", () => {
+  const book = {
+    id: "book-5",
+    title: "The Little Prince",
+    author: "Antoine de Saint-Exupéry",
+    isbn: "978-0-15-601219-5",
+    year: 1943,
+    copies: 1,
+  };
+
+  it("matches everything when the query is blank", () => {
+    expect(matchesBookQuery(book, "   ")).toBe(true);
+  });
+
+  it("ignores case and accents", () => {
+    expect(matchesBookQuery(book, "little")).toBe(true);
+    expect(matchesBookQuery(book, "EXUPERY")).toBe(true);
+  });
+
+  it("needs every word to match somewhere", () => {
+    expect(matchesBookQuery(book, "prince 1943")).toBe(true);
+    expect(matchesBookQuery(book, "prince 1944")).toBe(false);
+  });
+
+  it("finds an ISBN however it is hyphenated", () => {
+    expect(matchesBookQuery(book, "9780156012195")).toBe(true);
+    expect(matchesBookQuery(book, "0-15-601")).toBe(true);
+  });
+});
+
+describe("byTitle", () => {
+  const titled = (title: string) => ({ ...valid, id: title, title, year: 1, copies: 1 });
+
+  it("sorts the Norwegian letters after z and numbers by value", () => {
+    const titles = ["Ærlig talt", "Zorro", "Aksel", "1984", "451"].map(titled);
+    expect(titles.sort(byTitle).map((book) => book.title)).toEqual([
+      "451",
+      "1984",
+      "Aksel",
+      "Zorro",
+      "Ærlig talt",
+    ]);
   });
 });
