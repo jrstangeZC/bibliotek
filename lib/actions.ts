@@ -398,7 +398,7 @@ export async function updateBorrowerAction(
 
   // The name shows in the header and on every loan; refresh the lot.
   revalidatePath("/", "layout");
-  redirect(`/admin/brukere?lagret=${encodeURIComponent(result.borrower.id)}`);
+  return { saved: true };
 }
 
 /**
@@ -428,5 +428,5 @@ export async function updateOwnProfileAction(
   }
 
   revalidatePath("/", "layout");
-  redirect("/profil?lagret=1");
+  return { saved: true };
 }

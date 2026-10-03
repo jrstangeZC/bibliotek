@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Tick02Icon, UserAdd01Icon } from "@hugeicons/core-free-icons";
+import {
+  CheckmarkCircle02Icon,
+  Tick02Icon,
+  UserAdd01Icon,
+} from "@hugeicons/core-free-icons";
 
+import { FormFields } from "@/components/form-fields";
+import { roleLabels } from "@/components/role-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -20,7 +26,6 @@ import {
   FieldContent,
   FieldDescription,
   FieldError,
-  FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -37,7 +42,7 @@ import {
   updateOwnProfileAction,
 } from "@/lib/actions";
 import { emptyBorrowerDraft, toBorrowerDraft } from "@/lib/borrowers";
-import { emptyBorrowerFormState } from "@/lib/forms";
+import { emptyBorrowerFormState, type BorrowerFormState } from "@/lib/forms";
 import type { Borrower } from "@/lib/types";
 
 /**
@@ -74,28 +79,67 @@ const copy: Record<BorrowerFormMode, { title: string; description: string; submi
   },
 };
 
+type BorrowerFormProps = {
+  mode: BorrowerFormMode;
+  /** The entry being changed; omitted when enrolling. */
+  borrower?: Borrower;
+};
+
+/** How long «Endringene er lagret» stays when nothing is changed after a save. */
+const SAVED_NOTICE_MS = 7500;
+
 /**
  * One form for a person's entry, in all three places it is filled in. On
  * rejection the action hands back which field was wrong and what was typed, so
  * nothing is retyped.
+ *
+ * In `edit` the form is one section of the person's page, so «Avbryt» cannot
+ * leave it. It starts the form over instead: a fresh key remounts it with the
+ * stored values and no error.
  */
-export function BorrowerForm({
+export function BorrowerForm(props: BorrowerFormProps) {
+  const [attempt, setAttempt] = useState(0);
+
+  return (
+    <BorrowerFormCard
+      key={attempt}
+      {...props}
+      onCancel={props.mode === "edit" ? () => setAttempt((n) => n + 1) : undefined}
+    />
+  );
+}
+
+function BorrowerFormCard({
   mode,
   borrower,
-}: {
-  mode: BorrowerFormMode;
-  /** The entry being changed; omitted when enrolling. */
-  borrower?: Borrower;
-}) {
+  onCancel,
+}: BorrowerFormProps & { onCancel?: () => void }) {
   const [state, action, pending] = useActionState(actions[mode], emptyBorrowerFormState);
   const invalid = state.error?.field;
   const values = state.values ?? (borrower ? toBorrowerDraft(borrower) : emptyBorrowerDraft);
   const text = copy[mode];
+  // «Lagret» goes after a while, or as soon as anything is changed — it is true
+  // of what was submitted, not of what has been typed since. Each save hands
+  // back a new state object, so dismissing that object leaves the next save's
+  // notice to show. The Base UI select and checkbox report through their own
+  // callbacks; the text inputs bubble a native change event to the form.
+  const [dismissed, setDismissed] = useState<BorrowerFormState | null>(null);
+  const markEdited = () => setDismissed(state);
+
+  useEffect(() => {
+    if (!state.saved) return;
+    const timer = setTimeout(() => setDismissed(state), SAVED_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [state]);
 
   return (
     // noValidate: the server checks every field and answers in Norwegian, in
     // the same place as every other message.
-    <form action={action} noValidate>
+    <form
+      action={action}
+      noValidate
+      onChange={markEdited}
+    >
       {mode === "edit" && borrower ? (
         <input type="hidden" name="id" value={borrower.id} />
       ) : null}
@@ -105,7 +149,7 @@ export function BorrowerForm({
           <CardDescription>{text.description}</CardDescription>
         </CardHeader>
         <CardContent>
-          <FieldGroup>
+          <FormFields defaults={values}>
             <div className="grid gap-7 sm:grid-cols-2">
               <Field data-invalid={invalid === "name" ? "true" : undefined}>
                 <FieldLabel htmlFor="borrower-name">Navn</FieldLabel>
@@ -147,7 +191,13 @@ export function BorrowerForm({
                 data-invalid={invalid === "role" ? "true" : undefined}
               >
                 <FieldLabel htmlFor="borrower-role">Rolle</FieldLabel>
-                <Select name="role" defaultValue={values.role}>
+                {/* `items` lets the trigger show «Låner», not the raw value `borrower`. */}
+                <Select
+                  name="role"
+                  defaultValue={values.role}
+                  items={roleLabels}
+                  onValueChange={markEdited}
+                >
                   <SelectTrigger
                     id="borrower-role"
                     className="w-full"
@@ -156,8 +206,11 @@ export function BorrowerForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="borrower">Låner</SelectItem>
-                    <SelectItem value="librarian">Bibliotekar</SelectItem>
+                    {Object.entries(roleLabels).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {invalid === "role" ? (
@@ -175,6 +228,7 @@ export function BorrowerForm({
                 id="borrower-notify"
                 name="notifyByEmail"
                 defaultChecked={values.notifyByEmail}
+                onCheckedChange={markEdited}
               />
               <FieldContent>
                 <FieldLabel htmlFor="borrower-notify">
@@ -187,19 +241,31 @@ export function BorrowerForm({
                 </FieldDescription>
               </FieldContent>
             </Field>
-          </FieldGroup>
+          </FormFields>
         </CardContent>
         <CardFooter className="gap-3">
           <Button type="submit" disabled={pending}>
             <HugeiconsIcon icon={mode === "create" ? UserAdd01Icon : Tick02Icon} strokeWidth={2} />
             {pending ? "Lagrer …" : text.submit}
           </Button>
-          <Link
-            href={mode === "self" ? "/mine-laan" : "/admin/brukere"}
-            className={buttonVariants({ variant: "outline" })}
-          >
-            Avbryt
-          </Link>
+          {onCancel ? (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Avbryt
+            </Button>
+          ) : (
+            <Link
+              href={mode === "self" ? "/mine-laan" : "/admin/brukere"}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Avbryt
+            </Link>
+          )}
+          {state.saved && !pending && dismissed !== state ? (
+            <p role="status" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4" />
+              Endringene er lagret
+            </p>
+          ) : null}
         </CardFooter>
       </Card>
     </form>

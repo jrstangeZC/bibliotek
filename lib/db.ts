@@ -128,14 +128,6 @@ export async function getLoans(): Promise<Loan[]> {
   return enqueue(async () => (await read()).loans);
 }
 
-/** One borrower's loans, current and historic, newest first. */
-export async function getLoansForBorrower(borrowerId: string): Promise<Loan[]> {
-  const loans = await getLoans();
-  return loans
-    .filter((loan) => loan.borrowerId === borrowerId)
-    .sort((a, b) => b.borrowedAt.localeCompare(a.borrowedAt));
-}
-
 /** Every loan that has not been returned yet, oldest due date first. */
 export async function getActiveLoans(): Promise<Loan[]> {
   const loans = await getLoans();

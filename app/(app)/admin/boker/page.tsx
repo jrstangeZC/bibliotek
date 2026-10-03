@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Form from "next/form";
 import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -11,12 +10,12 @@ import {
   Delete02Icon,
   MoreVerticalIcon,
   PencilEdit01Icon,
-  Search01Icon,
   ViewIcon,
 } from "@hugeicons/core-free-icons";
 
 import { AdminNav } from "@/components/admin-nav";
 import { BookStatusBadge } from "@/components/book-status";
+import { CatalogueSearch, NoCatalogueMatches } from "@/components/catalogue-search";
 import { LibrarianRequired } from "@/components/librarian-required";
 import { PageHeading } from "@/components/page-heading";
 import { ColumnHead, IDENTITY_CELL, RecordCell } from "@/components/record-cell";
@@ -46,12 +45,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import {
   Table,
   TableBody,
   TableCell,
@@ -59,7 +52,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
-import { byTitle, matchesBookQuery } from "@/lib/books";
+import { byTitle, searchBooks } from "@/lib/books";
 import { describeError } from "@/lib/errors";
 import { listBooks, type BookView } from "@/lib/loans";
 
@@ -159,8 +152,7 @@ export default async function AdminBooksPage({
     searchParams,
   ]);
   const books = catalogue.toSorted(byTitle);
-  const query = typeof q === "string" ? q.trim() : "";
-  const matches = books.filter((book) => matchesBookQuery(book, query));
+  const { query, matches } = searchBooks(books, q);
   const error = describeError(feil);
   const created = typeof ny === "string" ? books.find((book) => book.id === ny) : null;
   const saved = typeof lagret === "string" ? books.find((book) => book.id === lagret) : null;
@@ -242,67 +234,18 @@ export default async function AdminBooksPage({
             </CardAction>
           </CardHeader>
 
-          <CardContent className="flex flex-col gap-3">
-            {/* A GET form: the search lives in the URL, so it survives a reload
-                and comes back with the back button after an edit. */}
-            <Form action="/admin/boker" role="search">
-              <label htmlFor="katalogsok" className="sr-only">
-                Søk i katalogen
-              </label>
-              <InputGroup>
-                <InputGroupAddon>
-                  <HugeiconsIcon icon={Search01Icon} strokeWidth={2} />
-                </InputGroupAddon>
-                <InputGroupInput
-                  id="katalogsok"
-                  name="q"
-                  type="search"
-                  defaultValue={query}
-                  placeholder="Tittel, forfatter, år eller ISBN"
-                  autoComplete="off"
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton type="submit" variant="secondary" size="sm">
-                    Søk
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
-            </Form>
-            {query && matches.length > 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {matches.length} av {books.length} titler passer med «{query}».{" "}
-                <Link
-                  href="/admin/boker"
-                  className="font-medium text-foreground underline underline-offset-2"
-                >
-                  Vis alle
-                </Link>
-              </p>
-            ) : null}
-          </CardContent>
+          <CatalogueSearch
+            action="/admin/boker"
+            inputId="katalogsok"
+            label="Søk i katalogen"
+            query={query}
+            matches={matches.length}
+            total={books.length}
+          />
 
-          <CardContent className="px-0">
+          <CardContent className={matches.length > 0 ? "px-0" : undefined}>
             {matches.length === 0 ? (
-              <Empty className="py-8">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <HugeiconsIcon icon={Search01Icon} strokeWidth={2} />
-                  </EmptyMedia>
-                  <EmptyTitle>Ingen treff</EmptyTitle>
-                  <EmptyDescription>
-                    Ingen titler passer med «{query}». Prøv et kortere ord, bare
-                    etternavnet til forfatteren eller sifrene i ISBN-en.
-                  </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
-                  <Link
-                    href="/admin/boker"
-                    className={buttonVariants({ variant: "outline", size: "sm" })}
-                  >
-                    Vis alle bøker
-                  </Link>
-                </EmptyContent>
-              </Empty>
+              <NoCatalogueMatches query={query} href="/admin/boker" />
             ) : (
               <Table>
                 <TableHeader>

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   AlertCircleIcon,
@@ -13,6 +12,7 @@ import {
 } from "@hugeicons/core-free-icons";
 
 import { BookStatusBadge, reservationBlockReasons } from "@/components/book-status";
+import { DetailRow } from "@/components/detail-row";
 import { PageHeading } from "@/components/page-heading";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -81,15 +81,6 @@ function footerText(book: BookView, nextDueAt: string | undefined): string {
 
   const queue = book.waiting > 0 ? ` ${book.waiting} står i kø foran deg.` : "";
   return `Ingen eksemplarer er ledige nå.${firstBack} Reserver, så holdes det første som kommer inn av til deg i ${HOLD_DAYS} dager.${queue}`;
-}
-
-function DetailRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:gap-4">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
 }
 
 /** «2 i kø · 1 holdt av», or «Ingen» when nobody is queueing. */

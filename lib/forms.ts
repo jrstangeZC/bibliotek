@@ -9,6 +9,13 @@ import type { BorrowerDraft, BorrowerFieldError } from "@/lib/borrowers";
 export type BorrowerFormState = {
   error?: BorrowerFieldError;
   values?: BorrowerDraft;
+  /**
+   * Set when an existing entry was saved. Those actions return this instead of
+   * redirecting: back to the page the form is already on, the action state
+   * would survive and keep showing an earlier attempt's error. Coming back
+   * without `values` or `error` clears it, and the form says it saved.
+   */
+  saved?: boolean;
 };
 
 export const emptyBorrowerFormState: BorrowerFormState = {};

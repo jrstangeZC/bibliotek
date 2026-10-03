@@ -32,3 +32,13 @@ export function LoanStatusCell({ loan }: { loan: LoanView }) {
     </div>
   );
 }
+
+/** The due date, with a muted «Forlenget» beneath once the loan has been renewed. */
+export function LoanDueCell({ loan }: { loan: LoanView }) {
+  return (
+    <div className="flex flex-col leading-snug">
+      {formatDate(loan.dueAt)}
+      {loan.renewedAt ? <span className="text-muted-foreground">Forlenget</span> : null}
+    </div>
+  );
+}

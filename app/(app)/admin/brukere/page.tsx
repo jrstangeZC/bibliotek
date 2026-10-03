@@ -5,6 +5,7 @@ import {
   AlertCircleIcon,
   CheckmarkCircle02Icon,
   MoreVerticalIcon,
+  UserAdd01Icon,
   UserEdit01Icon,
   UserIcon,
 } from "@hugeicons/core-free-icons";
@@ -23,7 +24,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/table";
 import { isActive } from "@/lib/availability";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
+import { borrowerEditHref } from "@/lib/borrowers";
 import { getBorrowers, getLoans } from "@/lib/db";
 import { describeError } from "@/lib/errors";
 
@@ -63,13 +64,12 @@ export default async function BorrowersPage({
     );
   }
 
-  const [people, loans, { ny, lagret, feil }] = await Promise.all([
+  const [people, loans, { ny, feil }] = await Promise.all([
     getBorrowers(),
     getLoans(),
     searchParams,
   ]);
   const enrolled = typeof ny === "string" ? people.find((p) => p.id === ny) : null;
-  const saved = typeof lagret === "string" ? people.find((p) => p.id === lagret) : null;
   const error = describeError(feil);
 
   return (
@@ -88,19 +88,6 @@ export default async function BorrowersPage({
         </Alert>
       ) : null}
 
-      {saved ? (
-        <Alert className="mb-6">
-          <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
-          <AlertTitle>{saved.name} er oppdatert</AlertTitle>
-          <AlertDescription>
-            Endringene gjelder med én gang.{" "}
-            {saved.notifyByEmail
-              ? `Varsler om reserverte bøker går til ${saved.email}.`
-              : "Personen får ikke e-post om reserverte bøker."}
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       {enrolled ? (
         <Alert className="mb-6">
           <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} />
@@ -116,10 +103,15 @@ export default async function BorrowersPage({
         <CardHeader>
           <CardTitle>Brukerregisteret</CardTitle>
           <CardDescription>
-            Sortert slik de ble lagt inn, med bibliotekarer merket.
+            {people.length} personer, sortert slik de ble lagt inn. Klikk et
+            navn for å endre opplysningene. Lånene står på samme side.
           </CardDescription>
           <CardAction>
-            <Badge variant="secondary">{people.length} personer</Badge>
+            {/* Same entry point as «Ny bok» on the books register. */}
+            <Link href="/admin/brukere/ny" className={buttonVariants({ size: "sm" })}>
+              <HugeiconsIcon icon={UserAdd01Icon} strokeWidth={2} />
+              Ny bruker
+            </Link>
           </CardAction>
         </CardHeader>
         <CardContent className="px-0">
@@ -145,7 +137,11 @@ export default async function BorrowersPage({
                     <TableCell
                       className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}
                     >
-                      <RecordCell icon={UserIcon} name={person.name}>
+                      <RecordCell
+                        icon={UserIcon}
+                        name={person.name}
+                        href={borrowerEditHref(person.id)}
+                      >
                         {person.email}
                       </RecordCell>
                     </TableCell>
@@ -168,10 +164,10 @@ export default async function BorrowersPage({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem
-                            render={<Link href={`/admin/brukere/${person.id}`} />}
+                            render={<Link href={borrowerEditHref(person.id)} />}
                           >
                             <HugeiconsIcon icon={UserEdit01Icon} strokeWidth={2} />
-                            Rediger
+                            Rediger bruker
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

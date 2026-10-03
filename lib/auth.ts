@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { getBorrower, getBorrowers } from "@/lib/db";
 import type { Borrower } from "@/lib/types";
@@ -24,8 +25,13 @@ export const SIGNED_OUT = "none";
 /** A year — long enough that a demo never gets logged out mid-walkthrough. */
 export const BORROWER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
-/** `null` means signed out. See {@link SIGNED_OUT} for why that beats "no cookie". */
-export async function getCurrentBorrower(): Promise<Borrower | null> {
+/**
+ * `null` means signed out. See {@link SIGNED_OUT} for why that beats "no cookie".
+ *
+ * Cached per request: the layout, the metadata and the page all ask, and each
+ * answer would otherwise be another read waiting in the database queue.
+ */
+export const getCurrentBorrower = cache(async (): Promise<Borrower | null> => {
   const value = (await cookies()).get(BORROWER_COOKIE)?.value;
 
   if (value === SIGNED_OUT) return null;
@@ -39,7 +45,7 @@ export async function getCurrentBorrower(): Promise<Borrower | null> {
   if (!first) throw new Error("Ingen lånere er registrert i datagrunnlaget.");
 
   return first;
-}
+});
 
 /** For screens that need a person: sends you to the login screen when you aren't one. */
 export async function requireBorrower(): Promise<Borrower> {

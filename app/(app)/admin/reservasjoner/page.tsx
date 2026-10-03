@@ -15,6 +15,7 @@ import { AdminNav } from "@/components/admin-nav";
 import { LibrarianRequired } from "@/components/librarian-required";
 import { PageHeading } from "@/components/page-heading";
 import {
+  BookRecordCell,
   ColumnHead,
   IDENTITY_CELL,
   RecordCell,
@@ -55,6 +56,7 @@ import {
 } from "@/components/ui/table";
 import { cancelReservationAction, markHoldHandledAction } from "@/lib/actions";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
+import { borrowerEditHref } from "@/lib/borrowers";
 import { describeError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import {
@@ -216,7 +218,7 @@ export default async function ReservationsPage({
                                 render={<Link href={`/boker/${hold.book.id}`} />}
                               >
                                 <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
-                                Åpne boken
+                                Se boken
                               </DropdownMenuItem>
                             ) : null}
                           </DropdownMenuContent>
@@ -282,18 +284,17 @@ export default async function ReservationsPage({
                       <TableCell
                         className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}
                       >
-                        <RecordCell
-                          icon={Bookmark01Icon}
-                          name={title}
-                          href={
-                            reservation.book ? `/boker/${reservation.book.id}` : undefined
-                          }
-                        >
-                          {reservation.book?.author}
-                        </RecordCell>
+                        <BookRecordCell book={reservation.book} icon={Bookmark01Icon} />
                       </TableCell>
                       <TableCell className={`py-3 ${SECONDARY_CELL}`}>
-                        <RecordCell name={reservation.borrower?.name ?? "Ukjent låner"}>
+                        <RecordCell
+                          name={reservation.borrower?.name ?? "Ukjent låner"}
+                          href={
+                            reservation.borrower
+                              ? borrowerEditHref(reservation.borrower.id)
+                              : undefined
+                          }
+                        >
                           {reservation.borrower?.email}
                         </RecordCell>
                       </TableCell>
@@ -321,7 +322,7 @@ export default async function ReservationsPage({
                                 render={<Link href={`/boker/${reservation.book.id}`} />}
                               >
                                 <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
-                                Åpne boken
+                                Se boken
                               </DropdownMenuItem>
                             ) : null}
                             <DropdownMenuSeparator />

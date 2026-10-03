@@ -16,6 +16,7 @@ import {
   SearchRemoveIcon,
 } from "@hugeicons/core-free-icons";
 
+import { DetailRow } from "@/components/detail-row";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -169,15 +170,6 @@ function Section({
       </div>
       {children}
     </section>
-  );
-}
-
-function DetailRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:gap-4">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd>{children}</dd>
-    </div>
   );
 }
 

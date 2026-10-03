@@ -49,3 +49,11 @@ export function toBorrowerDraft({ name, email, role, notifyByEmail }: Borrower):
 }
 
 export const EMAIL_TAKEN_MESSAGE = "Adressen er allerede i bruk av en annen bruker.";
+
+/** The anchor on the edit form at the foot of a person's page. */
+export const BORROWER_FORM_ID = "opplysninger";
+
+/** Where the desk edits a person. Every name a librarian sees links here. */
+export function borrowerEditHref(id: string): string {
+  return `/admin/brukere/${encodeURIComponent(id)}#${BORROWER_FORM_ID}`;
+}

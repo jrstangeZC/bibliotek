@@ -1,7 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import type { Role } from "@/lib/types";
 
-const labels: Record<Role, string> = {
+/** What each role is called in the interface. */
+export const roleLabels: Record<Role, string> = {
   borrower: "Låner",
   librarian: "Bibliotekar",
 };
@@ -19,11 +20,7 @@ export function RoleBadge({
 }) {
   return (
     <Badge variant="outline" className={className}>
-      {labels[role]}
+      {roleLabels[role]}
     </Badge>
   );
-}
-
-export function roleLabel(role: Role): string {
-  return labels[role];
 }

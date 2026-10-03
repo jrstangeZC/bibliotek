@@ -15,6 +15,7 @@ import { LibrarianRequired } from "@/components/librarian-required";
 import { LoanStatusCell } from "@/components/loan-status";
 import { PageHeading } from "@/components/page-heading";
 import {
+  BookRecordCell,
   ColumnHead,
   IDENTITY_CELL,
   RecordCell,
@@ -53,6 +54,7 @@ import {
 } from "@/components/ui/table";
 import { returnLoanAction } from "@/lib/actions";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
+import { borrowerEditHref } from "@/lib/borrowers";
 import { describeError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { findOpenReservation, listActiveLoans } from "@/lib/loans";
@@ -159,16 +161,13 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                     <TableCell
                       className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}
                     >
-                      <RecordCell
-                        icon={Book02Icon}
-                        name={loan.book?.title ?? "Ukjent tittel"}
-                        href={loan.book ? `/boker/${loan.book.id}` : undefined}
-                      >
-                        {loan.book?.author}
-                      </RecordCell>
+                      <BookRecordCell book={loan.book} />
                     </TableCell>
                     <TableCell className={`py-3 ${SECONDARY_CELL}`}>
-                      <RecordCell name={loan.borrower?.name ?? "Ukjent låner"}>
+                      <RecordCell
+                        name={loan.borrower?.name ?? "Ukjent låner"}
+                        href={loan.borrower ? borrowerEditHref(loan.borrower.id) : undefined}
+                      >
                         {loan.borrower?.email}
                       </RecordCell>
                     </TableCell>
@@ -221,7 +220,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                               render={<Link href={`/boker/${loan.book.id}`} />}
                             >
                               <HugeiconsIcon icon={Book02Icon} strokeWidth={2} />
-                              Åpne boken
+                              Se boken
                             </DropdownMenuItem>
                           ) : null}
                         </DropdownMenuContent>

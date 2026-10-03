@@ -218,6 +218,9 @@ where the surface begins and ends; a rule inside it just chops the surface up.
   without it a narrow screen squeezes it to a few characters while the fixed
   columns keep their width. Below the floor the table scrolls sideways instead,
   which is the correct behaviour on a phone.
+- A person's name on a librarian's screen links to their edit form:
+  `href={borrowerEditHref(id)}` on the `RecordCell` (from `lib/borrowers.ts`).
+  Never hand-build the URL; the form's anchor is `BORROWER_FORM_ID`, beside it.
 - Right-align numeric columns and add `tabular-nums`; left-align text. The
   headline value on the right gets `font-medium`; supporting columns stay muted.
 - Column headers are quiet: `h-9 text-xs font-medium uppercase tracking-wide

@@ -2,8 +2,10 @@ import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { IconSvgElement } from "@hugeicons/react";
+import { Book02Icon } from "@hugeicons/core-free-icons";
 
 import { TableHead } from "@/components/ui/table";
+import type { Book } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -93,5 +95,27 @@ export function RecordCell({
         ) : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * A `RecordCell` for the book a loan or reservation is about: title linking to
+ * the book, author beneath. A deleted book keeps its row as «Ukjent tittel».
+ */
+export function BookRecordCell({
+  book,
+  icon = Book02Icon,
+}: {
+  book: Book | null;
+  icon?: IconSvgElement;
+}) {
+  return (
+    <RecordCell
+      icon={icon}
+      name={book?.title ?? "Ukjent tittel"}
+      href={book ? `/boker/${book.id}` : undefined}
+    >
+      {book?.author}
+    </RecordCell>
   );
 }

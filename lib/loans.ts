@@ -175,16 +175,20 @@ function byUrgency(a: ReservationView, b: ReservationView): number {
   return a.reservedAt.localeCompare(b.reservedAt);
 }
 
+/** One person's open reservations, held copies first. */
+function openReservationsOf(database: Database, borrowerId: string): ReservationView[] {
+  return database.reservations
+    .filter((reservation) => isOpen(reservation) && reservation.borrowerId === borrowerId)
+    .map((reservation) => toReservationView(reservation, database))
+    .sort(byUrgency);
+}
+
 /** One person's open reservations. */
 export async function listReservationsForBorrower(
   borrowerId: string,
   today: DateInput = new Date()
 ): Promise<ReservationView[]> {
-  const database = await db.getSettled(today);
-  return database.reservations
-    .filter((reservation) => isOpen(reservation) && reservation.borrowerId === borrowerId)
-    .map((reservation) => toReservationView(reservation, database))
-    .sort(byUrgency);
+  return openReservationsOf(await db.getSettled(today), borrowerId);
 }
 
 /** The active loans on one title, so a detail page can say when a copy is back. */
@@ -201,11 +205,84 @@ export async function listActiveLoansForBook(
 
 /* --------------------------------------------------------------- queries --- */
 
+/** One person's loans, current and historic, in no particular order. */
+function loansOf(database: Database, borrowerId: string, today: DateInput): LoanView[] {
+  return database.loans
+    .filter((loan) => loan.borrowerId === borrowerId)
+    .map((loan) => toLoanView(loan, today, database));
+}
+
+/** Latest loan first. */
+function newestFirst(a: LoanView, b: LoanView): number {
+  return b.borrowedAt.localeCompare(a.borrowedAt);
+}
+
+/** One person's loans, current and historic, newest first. */
 export async function listLoansForBorrower(
   borrowerId: string,
   today: DateInput = new Date()
 ): Promise<LoanView[]> {
-  return describe(await db.getLoansForBorrower(borrowerId), today);
+  return loansOf(await db.getSettled(today), borrowerId, today).sort(newestFirst);
+}
+
+/** A person's own view: loans newest first and open reservations, from one read. */
+export async function listBorrowerActivity(
+  borrowerId: string,
+  today: DateInput = new Date()
+): Promise<{ loans: LoanView[]; reservations: ReservationView[] }> {
+  const database = await db.getSettled(today);
+  return {
+    loans: loansOf(database, borrowerId, today).sort(newestFirst),
+    reservations: openReservationsOf(database, borrowerId),
+  };
+}
+
+/**
+ * Late fees still owed: those on loans that are out. A returned loan keeps the
+ * fee it ran up (see `calculateLateFee`), but nothing records it being paid, so
+ * it is shown on the loan in the history rather than counted as owing.
+ */
+export function outstandingFees(loans: LoanView[]): number {
+  return loans
+    .filter((loan) => loan.status !== "returned")
+    .reduce((sum, loan) => sum + loan.lateFee, 0);
+}
+
+/** Everything the desk's page about one person shows, each list in its display order. */
+export type BorrowerOverview = {
+  borrower: Borrower;
+  /** Out now, the one due first on top. */
+  active: LoanView[];
+  /** Back on the shelf, the latest return on top. */
+  returned: LoanView[];
+  /** Open only, held copies first. */
+  reservations: ReservationView[];
+};
+
+/**
+ * One person with their loans and open reservations, read in a single pass —
+ * every read waits its turn in the database queue, so one load beats several.
+ */
+export async function findBorrowerOverview(
+  borrowerId: string,
+  today: DateInput = new Date()
+): Promise<BorrowerOverview | null> {
+  const database = await db.getSettled(today);
+  const borrower = database.borrowers.find((candidate) => candidate.id === borrowerId);
+  if (!borrower) return null;
+
+  const loans = loansOf(database, borrowerId, today);
+
+  return {
+    borrower,
+    active: loans
+      .filter((loan) => loan.status !== "returned")
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt)),
+    returned: loans
+      .filter((loan) => loan.status === "returned")
+      .sort((a, b) => (b.returnedAt ?? "").localeCompare(a.returnedAt ?? "")),
+    reservations: openReservationsOf(database, borrowerId),
+  };
 }
 
 export async function listActiveLoans(today: DateInput = new Date()): Promise<LoanView[]> {

@@ -3,15 +3,14 @@ import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   AlertCircleIcon,
-  Book02Icon,
   Bookmark01Icon,
   BookOpen01Icon,
   CheckmarkCircle02Icon,
 } from "@hugeicons/core-free-icons";
 
-import { LoanStatusCell } from "@/components/loan-status";
+import { LoanDueCell, LoanStatusCell } from "@/components/loan-status";
 import { PageHeading } from "@/components/page-heading";
-import { ColumnHead, IDENTITY_CELL, RecordCell } from "@/components/record-cell";
+import { BookRecordCell, ColumnHead, IDENTITY_CELL } from "@/components/record-cell";
 import { RenewLoanMenu } from "@/components/renew-loan-menu";
 import { ReservationMenu } from "@/components/reservation-menu";
 import { ReservationStatusCell } from "@/components/reservation-status";
@@ -42,7 +41,7 @@ import {
 import { requireBorrower } from "@/lib/auth";
 import { describeError } from "@/lib/errors";
 import { formatDate, formatKroner } from "@/lib/format";
-import { listLoansForBorrower, listReservationsForBorrower } from "@/lib/loans";
+import { listBorrowerActivity, outstandingFees } from "@/lib/loans";
 import { RENEWAL_DAYS } from "@/lib/renewals";
 import { HOLD_DAYS, MAX_OPEN_RESERVATIONS } from "@/lib/reservations";
 
@@ -57,12 +56,8 @@ export default async function MyLoansPage({
   searchParams,
 }: PageProps<"/mine-laan">) {
   const borrower = await requireBorrower();
-  const [loans, reservations, { feil, forlenget, reservert, avbestilt }] =
-    await Promise.all([
-      listLoansForBorrower(borrower.id),
-      listReservationsForBorrower(borrower.id),
-      searchParams,
-    ]);
+  const [{ loans, reservations }, { feil, forlenget, reservert, avbestilt }] =
+    await Promise.all([listBorrowerActivity(borrower.id), searchParams]);
   const error = describeError(feil);
   const renewed =
     typeof forlenget === "string" ? loans.find((loan) => loan.id === forlenget) : null;
@@ -71,9 +66,7 @@ export default async function MyLoansPage({
       ? reservations.find((reservation) => reservation.id === reservert)
       : null;
   const ready = reservations.filter((reservation) => reservation.status === "ready").length;
-  const outstanding = loans
-    .filter((loan) => loan.status !== "returned")
-    .reduce((sum, loan) => sum + loan.lateFee, 0);
+  const outstanding = outstandingFees(loans);
 
   return (
     <>
@@ -157,15 +150,7 @@ export default async function MyLoansPage({
                     <TableCell
                       className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}
                     >
-                      <RecordCell
-                        icon={Bookmark01Icon}
-                        name={reservation.book?.title ?? "Ukjent tittel"}
-                        href={
-                          reservation.book ? `/boker/${reservation.book.id}` : undefined
-                        }
-                      >
-                        {reservation.book?.author}
-                      </RecordCell>
+                      <BookRecordCell book={reservation.book} icon={Bookmark01Icon} />
                     </TableCell>
                     <TableCell className="py-3">
                       <ReservationStatusCell reservation={reservation} />
@@ -227,21 +212,10 @@ export default async function MyLoansPage({
                     <TableCell
                       className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}
                     >
-                      <RecordCell
-                        icon={Book02Icon}
-                        name={loan.book?.title ?? "Ukjent tittel"}
-                        href={loan.book ? `/boker/${loan.book.id}` : undefined}
-                      >
-                        {loan.book?.author}
-                      </RecordCell>
+                      <BookRecordCell book={loan.book} />
                     </TableCell>
                     <TableCell className="py-3 tabular-nums">
-                      <div className="flex flex-col leading-snug">
-                        {formatDate(loan.dueAt)}
-                        {loan.renewedAt ? (
-                          <span className="text-muted-foreground">Forlenget</span>
-                        ) : null}
-                      </div>
+                      <LoanDueCell loan={loan} />
                     </TableCell>
                     <TableCell className="py-3">
                       <LoanStatusCell loan={loan} />

@@ -134,6 +134,18 @@ export function matchesBookQuery(book: Book, query: string): boolean {
   });
 }
 
+/**
+ * A list narrowed by the `q` search parameter, as the catalogue pages read it.
+ * Anything but a single string counts as no search.
+ */
+export function searchBooks<T extends Book>(
+  books: T[],
+  q: string | string[] | undefined
+): { query: string; matches: T[] } {
+  const query = typeof q === "string" ? q.trim() : "";
+  return { query, matches: books.filter((book) => matchesBookQuery(book, query)) };
+}
+
 /** Shelf order: by title the way a Norwegian reader alphabetises, so «Ærlig» files after «Zorro». */
 export function byTitle(a: Book, b: Book): number {
   return a.title.localeCompare(b.title, "nb", { sensitivity: "base", numeric: true });

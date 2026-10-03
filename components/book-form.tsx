@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Add01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 
+import { FormFields } from "@/components/form-fields";
 import { buttonVariants, Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,7 +19,6 @@ import {
   Field,
   FieldDescription,
   FieldError,
-  FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -73,7 +73,7 @@ export function BookForm({ book, onLoan = 0 }: { book?: Book; onLoan?: number })
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <FieldGroup>
+          <FormFields defaults={values}>
             <Field data-invalid={invalid === "title" ? "true" : undefined}>
               <FieldLabel htmlFor="book-title">Tittel</FieldLabel>
               <Input {...field("title")} autoComplete="off" />
@@ -137,7 +137,7 @@ export function BookForm({ book, onLoan = 0 }: { book?: Book; onLoan?: number })
                 )}
               </Field>
             </div>
-          </FieldGroup>
+          </FormFields>
         </CardContent>
         <CardFooter className="gap-3">
           <Button type="submit" disabled={pending}>
