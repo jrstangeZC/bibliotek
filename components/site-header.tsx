@@ -12,6 +12,7 @@ import {
 
 import { Wordmark } from "@/components/logo";
 import { RoleBadge } from "@/components/role-badge";
+import { HeaderSearch } from "@/components/site-search";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -66,7 +67,11 @@ export function SiteHeader({
           <Wordmark />
         </Link>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 sm:w-auto">
+          {/* Not on /sok: the page's own field is where a search is adjusted,
+              and two fields holding one search is one too many. */}
+          {pathname === "/sok" ? null : <HeaderSearch />}
+
           <nav aria-label="Hovedmeny">
             <ul className="flex flex-wrap items-center gap-1">
               {navigation

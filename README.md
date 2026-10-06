@@ -20,6 +20,7 @@ npm run reset-data # tilbake til utgangspunktet i data/seed.json
 | --- | --- |
 | `/` | Hele samlingen, med hvor mange eksemplarer som er ledige |
 | `/boker/[id]` | Detaljer om én tittel, og knappen som låner eller reserverer den |
+| `/sok` | Søk på tvers av bøker, personer, lån og reservasjoner. Hva du får treff i, avhenger av hvem du er (se [`docs/sok-spec.md`](docs/sok-spec.md)) |
 | `/mine-laan` | Lånene og reservasjonene dine, med frister, status og gebyr — og forlengelse av lån |
 | `/admin` | Alle aktive lån, med registrering av retur |
 | `/admin/reservasjoner` | Køene, og eksemplarer på hentehylla som må flyttes |

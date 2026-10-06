@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/table";
 import { borrowBookAction, reserveBookAction } from "@/lib/actions";
 import { getCurrentBorrower } from "@/lib/auth";
-import { searchBooks } from "@/lib/books";
+import { searchBooks } from "@/lib/search";
 import { listBooks, type BookView } from "@/lib/loans";
 
 export const dynamic = "force-dynamic";

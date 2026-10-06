@@ -183,6 +183,7 @@ function revalidateCatalogue() {
   revalidatePath("/admin");
   revalidatePath("/admin/boker");
   revalidatePath("/boker/[id]", "page");
+  revalidatePath("/sok");
 }
 
 /**
@@ -359,6 +360,7 @@ export async function registerBorrowerAction(
 
   revalidatePath("/admin/brukere");
   revalidatePath("/logg-inn");
+  revalidatePath("/sok");
   redirect(`/admin/brukere?ny=${encodeURIComponent(borrower.id)}`);
 }
 

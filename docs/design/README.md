@@ -174,7 +174,10 @@ where the surface begins and ends; a rule inside it just chops the surface up.
   Every control gets a real `<label htmlFor>`. Mark errors with
   `aria-invalid` on the control **and** `data-invalid="true"` on the `Field`.
 - **Search** — `InputGroup` with a leading `Search01Icon` addon and a trailing
-  `InputGroupButton`.
+  `InputGroupButton`. **One exception:** the search field in the header
+  (`HeaderSearch` in `components/site-search.tsx`) has no button. It only
+  starts a search, Enter sends it, and the full recipe with the button is on
+  `/sok`, where the search is adjusted.
 - **Icons** — `<HugeiconsIcon icon={SomeIcon} strokeWidth={2} />`. The button and
   badge primitives size icons automatically; don't set `size-*` unless you mean
   to override.
@@ -184,11 +187,14 @@ where the surface begins and ends; a rule inside it just chops the surface up.
 - Content column: `mx-auto w-full max-w-225 px-6` (900 px). Header and main
   share the same column so their edges line up.
 - Vertical rhythm: `py-10`–`py-12` between sections, `Separator` between them.
-- Header is a single row: mark + name on the left, then nav and the current
-  user's menu grouped together on the right, one `border-b`. The user menu is a
-  `DropdownMenuTrigger` styled with `buttonVariants({ variant: "outline", size:
-  "sm" })`, showing the name and a chevron, opening a `DropdownMenu` that
-  repeats name, email and role before the account actions.
+- Header is a single row: mark + name on the left, then the search field, nav
+  and the current user's menu grouped together on the right, one `border-b`.
+  The search field is the group's first item, `w-56` from `sm` up and a
+  full-width row of its own below `sm`. It is left out on `/sok`, whose own
+  field holds the search. The user menu is a `DropdownMenuTrigger` styled with
+  `buttonVariants({ variant: "outline", size: "sm" })`, showing the name and a
+  chevron, opening a `DropdownMenu` that repeats name, email and role before
+  the account actions.
 - Navigation only lists what the current user may open — a plain borrower never
   sees the administration link. A page they reach anyway explains why, and
   offers the way across, rather than 404-ing.

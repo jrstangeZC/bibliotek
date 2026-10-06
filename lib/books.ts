@@ -47,7 +47,8 @@ export function normalizeIsbn(isbn: string): string {
   return isbn.replace(/[\s-]/g, "").toUpperCase();
 }
 
-const ISBN_PATTERN = /^(\d{9}[\dX]|\d{13})$/;
+/** A complete ISBN-10 or ISBN-13, after `normalizeIsbn`. The check digit is not verified. */
+export const ISBN_PATTERN = /^(\d{9}[\dX]|\d{13})$/;
 
 const INTEGER_PATTERN = /^\d+$/;
 
@@ -104,46 +105,6 @@ export function toDraft(book: Book): BookDraft {
     year: String(book.year),
     copies: String(book.copies),
   };
-}
-
-/* ---------------------------------------------------------------- search --- */
-
-/** Case and diacritics are noise in a search box: «saint-exupery» finds «Saint-Exupéry». */
-function fold(text: string): string {
-  return text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("nb");
-}
-
-/**
- * Whether a book answers a search: every word must appear somewhere in the
- * title, the author or the year, so «tolkien 1954» narrows instead of widening.
- * An ISBN is matched on its digits alone, whichever way it was hyphenated.
- */
-export function matchesBookQuery(book: Book, query: string): boolean {
-  const terms = fold(query).split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return true;
-
-  const text = fold(`${book.title} ${book.author} ${book.year}`);
-  const isbn = normalizeIsbn(book.isbn);
-
-  return terms.every((term) => {
-    if (text.includes(term)) return true;
-
-    // Three characters at least, or «9» would match every ISBN in the catalogue.
-    const digits = normalizeIsbn(term);
-    return digits.length >= 3 && isbn.includes(digits);
-  });
-}
-
-/**
- * A list narrowed by the `q` search parameter, as the catalogue pages read it.
- * Anything but a single string counts as no search.
- */
-export function searchBooks<T extends Book>(
-  books: T[],
-  q: string | string[] | undefined
-): { query: string; matches: T[] } {
-  const query = typeof q === "string" ? q.trim() : "";
-  return { query, matches: books.filter((book) => matchesBookQuery(book, query)) };
 }
 
 /** Shelf order: by title the way a Norwegian reader alphabetises, so «Ærlig» files after «Zorro». */

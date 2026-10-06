@@ -1,4 +1,6 @@
+import { isLibrarian } from "@/lib/auth";
 import { countAvailableCopies, countHeldCopies, isActive } from "@/lib/availability";
+import { byTitle } from "@/lib/books";
 import { addDays, daysBetween, type DateInput } from "@/lib/dates";
 import * as db from "@/lib/db";
 import { calculateLateFee, daysOverdue } from "@/lib/fees";
@@ -17,6 +19,13 @@ import {
   type ReservationBlock,
   type ReservationResult,
 } from "@/lib/reservations";
+import {
+  bookHaystack,
+  matchesQuery,
+  parseQuery,
+  personHaystack,
+  type Haystack,
+} from "@/lib/search";
 import type { Book, Borrower, Database, Loan, Reservation } from "@/lib/types";
 
 /** How long a loan runs, from the day it is taken out. */
@@ -289,6 +298,137 @@ export async function listActiveLoans(today: DateInput = new Date()): Promise<Lo
   return describe(await db.getActiveLoans(), today);
 }
 
+/* ---------------------------------------------------------------- search --- */
+
+/**
+ * How far a search reaches. It follows from who is searching, never from the
+ * page: `public` when signed out, `own` for a borrower, `desk` for a librarian.
+ */
+export type SearchScope = "public" | "own" | "desk";
+
+/** A person the desk's search found, with how many books they have out. */
+export type BorrowerHit = Borrower & { onLoan: number };
+
+export type SearchResults = {
+  /** The search as typed, trimmed. `""` when it is missing. */
+  query: string;
+  scope: SearchScope;
+  /** `false` for an empty search, including one that was only punctuation. */
+  searched: boolean;
+  books: BookView[];
+  /** Always empty outside `desk`. */
+  borrowers: BorrowerHit[];
+  /** Active loans only, and only the viewer's own outside `desk`. */
+  loans: LoanView[];
+  /** Open reservations only, and only the viewer's own outside `desk`. */
+  reservations: ReservationView[];
+  total: number;
+  /** The book's id when the search is a complete ISBN and that book is the only match. */
+  isbnTarget: string | null;
+};
+
+function scopeFor(viewer: Borrower | null): SearchScope {
+  if (viewer === null) return "public";
+  return isLibrarian(viewer) ? "desk" : "own";
+}
+
+/**
+ * What a loan or reservation answers to. It has no text of its own, so it
+ * matches through its book, and at the desk through its borrower too. Never
+ * through the viewer's own name: a search for it would list everything they have.
+ */
+function activityHaystack(
+  record: { book: Book | null; borrower: Borrower | null },
+  scope: SearchScope
+): Haystack {
+  const book = record.book ? bookHaystack(record.book) : { text: [] };
+  const person =
+    scope === "desk" && record.borrower ? personHaystack(record.borrower).text : [];
+
+  return { text: [...book.text, ...person], isbn: book.isbn };
+}
+
+/**
+ * One search across the catalogue, the register, active loans and open
+ * reservations, cut to what `viewer` may see. The scope is settled here rather
+ * than on the page, so a page never holds rows it must not show. Each group
+ * keeps the order of the register it comes from; there is no ranking.
+ */
+export async function searchLibrary(
+  q: string | string[] | undefined,
+  viewer: Borrower | null,
+  today: DateInput = new Date()
+): Promise<SearchResults> {
+  const scope = scopeFor(viewer);
+  const parsed = parseQuery(q);
+  const empty: SearchResults = {
+    query: typeof q === "string" ? q.trim() : "",
+    scope,
+    searched: parsed !== null,
+    books: [],
+    borrowers: [],
+    loans: [],
+    reservations: [],
+    total: 0,
+    isbnTarget: null,
+  };
+  if (parsed === null) return empty;
+
+  const database = await db.getSettled(today);
+  const matches = (haystack: Haystack) => matchesQuery(parsed, haystack);
+  // Other people's loans and reservations are gone before anything is matched,
+  // so «marit» finds exactly as little for a borrower as «xyz» does.
+  const visible = (record: { borrowerId: string }) =>
+    scope === "desk" || (scope === "own" && record.borrowerId === viewer?.id);
+
+  const books = database.books
+    .filter((book) => matches(bookHaystack(book)))
+    .sort(byTitle)
+    .map((book) => toBookView(book, database, null));
+
+  const borrowers =
+    scope === "desk"
+      ? database.borrowers
+          .filter((person) => matches(personHaystack(person)))
+          .sort((a, b) => a.name.localeCompare(b.name, "nb"))
+          .map((person) => ({
+            ...person,
+            onLoan: database.loans.filter(
+              (loan) => loan.borrowerId === person.id && isActive(loan)
+            ).length,
+          }))
+      : [];
+
+  const loans = database.loans
+    .filter((loan) => isActive(loan) && visible(loan))
+    .map((loan) => toLoanView(loan, today, database))
+    .filter((loan) => matches(activityHaystack(loan, scope)))
+    .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+
+  const reservations = database.reservations
+    .filter((reservation) => isOpen(reservation) && visible(reservation))
+    .map((reservation) => toReservationView(reservation, database))
+    .filter((reservation) => matches(activityHaystack(reservation, scope)))
+    .sort(byDeskOrder);
+
+  const total = books.length + borrowers.length + loans.length + reservations.length;
+
+  return {
+    ...empty,
+    books,
+    borrowers,
+    loans,
+    reservations,
+    total,
+    // A scanned or pasted ISBN means «open this book». At the desk, an ISBN with
+    // copies out also finds the loans, and then who has them is the answer.
+    isbnTarget:
+      parsed.completeIsbn !== null && total === 1 && books.length === 1
+        ? books[0].id
+        : null,
+  };
+}
+
 /* -------------------------------------------------------------- commands --- */
 
 export type LoanError =
@@ -360,6 +500,15 @@ export async function registerReturn(
   return { ok: true, ...returned };
 }
 
+/** The desk's order: held copies first, then the queues, title by title, in queue order. */
+function byDeskOrder(a: ReservationView, b: ReservationView): number {
+  return (
+    byUrgency(a, b) ||
+    (a.book?.title ?? "").localeCompare(b.book?.title ?? "", "nb") ||
+    (a.position ?? 0) - (b.position ?? 0)
+  );
+}
+
 /** Every open reservation in the library: held copies first, then the queues. */
 export async function listOpenReservations(
   today: DateInput = new Date()
@@ -368,12 +517,7 @@ export async function listOpenReservations(
   return database.reservations
     .filter(isOpen)
     .map((reservation) => toReservationView(reservation, database))
-    .sort(
-      (a, b) =>
-        byUrgency(a, b) ||
-        (a.book?.title ?? "").localeCompare(b.book?.title ?? "", "nb") ||
-        (a.position ?? 0) - (b.position ?? 0)
-    );
+    .sort(byDeskOrder);
 }
 
 /** One open reservation, or `null` once it has been collected, cancelled or run out. */

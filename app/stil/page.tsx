@@ -76,6 +76,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Logo, Wordmark } from "@/components/logo";
+import { HeaderSearch } from "@/components/site-search";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -184,7 +185,9 @@ export default function StylePage() {
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex w-full max-w-225 flex-wrap items-center justify-between gap-x-8 gap-y-3 px-6 py-3">
           <Wordmark />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 sm:w-auto">
+            {/* Det ekte headerfeltet: uten knapp, Enter sender til /sok. */}
+            <HeaderSearch />
             <nav aria-label="Hovedmeny">
               <ul className="flex flex-wrap items-center gap-1">
                 {navigation.map((item) => (

@@ -52,9 +52,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
-import { byTitle, searchBooks } from "@/lib/books";
+import { byTitle } from "@/lib/books";
 import { describeError } from "@/lib/errors";
 import { listBooks, type BookView } from "@/lib/loans";
+import { searchBooks } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 
