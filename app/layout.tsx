@@ -18,7 +18,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       {/* Browser extensions inject attributes on <body> before hydration. */}
       <body suppressHydrationWarning className="flex min-h-full flex-col bg-background text-foreground">
         {children}
-        <footer> &nbsp; </footer>
       </body>
     </html>
   );
