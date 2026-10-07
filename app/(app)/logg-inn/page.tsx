@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { IconSvgElement } from "@hugeicons/react";
 import {
@@ -97,7 +98,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/logg-inn"
         </Alert>
       ) : null}
 
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {quickPicks.map((pick) => (
           <Card key={pick.person.id}>
             <CardHeader>
@@ -114,7 +115,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/logg-inn"
                 </p>
               ) : null}
             </CardContent>
-            <CardFooter>
+            <CardFooter className="mt-auto">
               <form action={signInAction}>
                 <input type="hidden" name="borrowerId" value={pick.person.id} />
                 <Button type="submit" variant={pick.variant}>
@@ -124,6 +125,21 @@ export default async function SignInPage({ searchParams }: PageProps<"/logg-inn"
             </CardFooter>
           </Card>
         ))}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Gjest</CardTitle>
+            <CardDescription>
+              Bla i samlingen og se hva som er ledig uten å logge inn. For å
+              låne eller reservere må du velge en av rollene.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="mt-auto">
+            <Button variant="outline" nativeButton={false} render={<Link href="/" />}>
+              Se samlingen
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
 
       {current ? (
