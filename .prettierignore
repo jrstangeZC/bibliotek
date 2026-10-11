@@ -1,0 +1,15 @@
+# Genererte filer og avhengigheter
+node_modules
+.next
+out
+build
+coverage
+package-lock.json
+
+# Data: seed.json er sannhetskilden for testene, db.json er arbeidskopien
+data
+
+# Claude-konfig og -instruksjoner skal ikke omformuleres av Prettier
+.claude
+AGENTS.md
+CLAUDE.md

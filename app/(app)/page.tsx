@@ -1,57 +1,64 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { HugeiconsIcon } from "@hugeicons/react";
+import type { Metadata } from "next"
+import Link from "next/link"
+import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowRight01Icon,
   Book02Icon,
   BookmarkAdd01Icon,
   BookOpen01Icon,
   MoreVerticalIcon,
-} from "@hugeicons/core-free-icons";
+} from "@hugeicons/core-free-icons"
 
-import { BookStatusBadge, reservationBlockReasons } from "@/components/book-status";
-import { CatalogueSearch, NoCatalogueMatches } from "@/components/catalogue-search";
-import { PageHeading } from "@/components/page-heading";
-import { ColumnHead, IDENTITY_CELL, RecordCell } from "@/components/record-cell";
-import { buttonVariants } from "@/components/ui/button";
+import {
+  BookStatusBadge,
+  reservationBlockReasons,
+} from "@/components/book-status"
+import {
+  CatalogueSearch,
+  NoCatalogueMatches,
+} from "@/components/catalogue-search"
+import { PageHeading } from "@/components/page-heading"
+import { ColumnHead, IDENTITY_CELL, RecordCell } from "@/components/record-cell"
+import { buttonVariants } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty";
+} from "@/components/ui/empty"
 import {
   Table,
   TableBody,
   TableCell,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { borrowBookAction, reserveBookAction } from "@/lib/actions";
-import { getCurrentBorrower } from "@/lib/auth";
-import { searchBooks } from "@/lib/search";
-import { listBooks, type BookView } from "@/lib/loans";
+} from "@/components/ui/table"
+import { borrowBookAction, reserveBookAction } from "@/lib/actions"
+import { getCurrentBorrower } from "@/lib/auth"
+import { searchBooks } from "@/lib/search"
+import { listBooks, type BookView } from "@/lib/loans"
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
   title: "Bøker – Bibliotek",
-  description: "Alle titlene i samlingen og hvor mange eksemplarer som er ledige",
-};
+  description:
+    "Alle titlene i samlingen og hvor mange eksemplarer som er ledige",
+}
 
 /**
  * The first item in a row's menu: borrow when a copy is free (or held for the
@@ -60,7 +67,7 @@ export const metadata: Metadata = {
  * see the comment in the table below.
  */
 function BorrowOrReserveItem({ book }: { book: BookView }) {
-  const standing = book.viewer;
+  const standing = book.viewer
 
   if (!standing) {
     return (
@@ -68,7 +75,7 @@ function BorrowOrReserveItem({ book }: { book: BookView }) {
         <HugeiconsIcon icon={BookOpen01Icon} strokeWidth={2} />
         Logg inn for å låne
       </DropdownMenuItem>
-    );
+    )
   }
 
   if (standing.canBorrow) {
@@ -80,15 +87,19 @@ function BorrowOrReserveItem({ book }: { book: BookView }) {
         <HugeiconsIcon icon={BookOpen01Icon} strokeWidth={2} />
         Lån boken
       </DropdownMenuItem>
-    );
+    )
   }
 
-  const block = standing.reservationBlock;
+  const block = standing.reservationBlock
   if (block && block !== "book-available") {
     // Only the action fades; the reason is what the reader needs to read.
     return (
       <DropdownMenuItem disabled className="data-disabled:opacity-100">
-        <HugeiconsIcon icon={BookmarkAdd01Icon} strokeWidth={2} className="opacity-50" />
+        <HugeiconsIcon
+          icon={BookmarkAdd01Icon}
+          strokeWidth={2}
+          className="opacity-50"
+        />
         <span className="flex flex-col leading-snug">
           <span className="opacity-50">Reserver boken</span>
           <span className="text-xs text-muted-foreground">
@@ -96,7 +107,7 @@ function BorrowOrReserveItem({ book }: { book: BookView }) {
           </span>
         </span>
       </DropdownMenuItem>
-    );
+    )
   }
 
   return (
@@ -107,19 +118,23 @@ function BorrowOrReserveItem({ book }: { book: BookView }) {
       <HugeiconsIcon icon={BookmarkAdd01Icon} strokeWidth={2} />
       Reserver boken
     </DropdownMenuItem>
-  );
+  )
 }
 
 export default async function BooksPage({ searchParams }: PageProps<"/">) {
-  const [viewer, { q }] = await Promise.all([getCurrentBorrower(), searchParams]);
-  const books = await listBooks(new Date(), viewer?.id ?? null);
-  const { query, matches } = searchBooks(books, q);
+  const [viewer, { q }] = await Promise.all([
+    getCurrentBorrower(),
+    searchParams,
+  ])
+  const books = await listBooks(new Date(), viewer?.id ?? null)
+  const { query, matches } = searchBooks(books, q)
 
   return (
     <>
       <PageHeading title="Bøker">
-        Hele samlingen, med antall eksemplarer som står ledig akkurat nå. Åpne en
-        tittel for å låne den, eller reserver den hvis alle eksemplarene er ute.
+        Hele samlingen, med antall eksemplarer som står ledig akkurat nå. Åpne
+        en tittel for å låne den, eller reserver den hvis alle eksemplarene er
+        ute.
       </PageHeading>
 
       {books.length === 0 ? (
@@ -130,19 +145,20 @@ export default async function BooksPage({ searchParams }: PageProps<"/">) {
             </EmptyMedia>
             <EmptyTitle>Ingen bøker i katalogen</EmptyTitle>
             <EmptyDescription>
-              Samlingen er tom. Legg inn titler i datagrunnlaget før du låner ut.
+              Samlingen er tom. Legg inn titler i datagrunnlaget før du låner
+              ut.{" "}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
         <Card>
+          {" "}
           <CardHeader>
             <CardTitle>Samlingen</CardTitle>
             <CardDescription>
               {books.length} titler. Lånetiden er 28 dager fra utlånsdagen.
-            </CardDescription>
+            </CardDescription>{" "}
           </CardHeader>
-
           <CatalogueSearch
             action="/"
             inputId="samlingsok"
@@ -151,7 +167,6 @@ export default async function BooksPage({ searchParams }: PageProps<"/">) {
             matches={matches.length}
             total={books.length}
           />
-
           <CardContent className={matches.length > 0 ? "px-0" : undefined}>
             {matches.length === 0 ? (
               <NoCatalogueMatches query={query} href="/" />
@@ -159,7 +174,9 @@ export default async function BooksPage({ searchParams }: PageProps<"/">) {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <ColumnHead className="pl-(--card-spacing)">Tittel</ColumnHead>
+                    <ColumnHead className="pl-(--card-spacing)">
+                      Tittel
+                    </ColumnHead>
                     <ColumnHead className="text-right">Eksemplarer</ColumnHead>
                     <ColumnHead>Status</ColumnHead>
                     <ColumnHead className="pr-(--card-spacing) text-right">
@@ -174,7 +191,9 @@ export default async function BooksPage({ searchParams }: PageProps<"/">) {
                         className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}
                       >
                         <RecordCell
-                          icon={book.available > 0 ? Book02Icon : BookOpen01Icon}
+                          icon={
+                            book.available > 0 ? Book02Icon : BookOpen01Icon
+                          }
                           name={book.title}
                           href={`/boker/${book.id}`}
                         >
@@ -242,5 +261,5 @@ export default async function BooksPage({ searchParams }: PageProps<"/">) {
         </Card>
       )}
     </>
-  );
+  )
 }
