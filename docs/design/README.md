@@ -70,20 +70,20 @@ busy ground. The accent spine is the only colour it gets.
 
 Warm neutrals plus **one** terracotta accent. Never introduce a new hue.
 
-| Token | Light | Role |
-| --- | --- | --- |
-| `background` | `#f3f1f1` | Page ground — warm off-white, never pure white |
-| `foreground` | `#0c0a09` | Primary text (warm near-black, not pure black) |
-| `card` | `#ffffff` | Raised surfaces — white, so they lift off the ground |
-| `primary` | `#bb4d00` | The accent. Primary buttons, active nav, key icons, progress fill |
-| `primary-foreground` | `#fffbeb` | Text on primary |
-| `secondary` | `#f4f4f5` | Quiet button fill |
-| `accent` | `#b75000` | **Same terracotta as `primary`** — selected and focused rows |
-| `muted` | `#f3f1f1` | Hover fills, icon tiles, chart tracks |
-| `muted-foreground` | `#7c6d67` | Secondary text, labels, units |
-| `border` | `#e8e4e3` | Hairlines and dividers |
-| `destructive` | `#e7000b` | Errors and irreversible actions only |
-| `chart-1` … `chart-5` | `#d8d2d0` → `#2b2422` | Taupe ramp, light to dark |
+| Token                 | Light                 | Role                                                              |
+| --------------------- | --------------------- | ----------------------------------------------------------------- |
+| `background`          | `#f3f1f1`             | Page ground — warm off-white, never pure white                    |
+| `foreground`          | `#0c0a09`             | Primary text (warm near-black, not pure black)                    |
+| `card`                | `#ffffff`             | Raised surfaces — white, so they lift off the ground              |
+| `primary`             | `#bb4d00`             | The accent. Primary buttons, active nav, key icons, progress fill |
+| `primary-foreground`  | `#fffbeb`             | Text on primary                                                   |
+| `secondary`           | `#f4f4f5`             | Quiet button fill                                                 |
+| `accent`              | `#b75000`             | **Same terracotta as `primary`** — selected and focused rows      |
+| `muted`               | `#f3f1f1`             | Hover fills, icon tiles, chart tracks                             |
+| `muted-foreground`    | `#7c6d67`             | Secondary text, labels, units                                     |
+| `border`              | `#e8e4e3`             | Hairlines and dividers                                            |
+| `destructive`         | `#e7000b`             | Errors and irreversible actions only                              |
+| `chart-1` … `chart-5` | `#d8d2d0` → `#2b2422` | Taupe ramp, light to dark                                         |
 
 Rules:
 
@@ -116,15 +116,15 @@ Two loaded families, both set up in `app/layout.tsx`:
   and display figures.
 - **DM Sans** → `font-sans`, the default. All body, labels, controls, tables.
 
-| Use | Classes |
-| --- | --- |
-| Page title (h1) | `font-heading text-3xl font-medium tracking-tight` |
-| Section title (h2) | `font-heading text-xl font-medium tracking-tight` |
-| Card title | `CardTitle` (already `font-heading`) |
-| Body | `text-sm/relaxed` |
-| Secondary body | `text-sm/relaxed text-muted-foreground` |
-| Micro label | `text-xs font-medium uppercase tracking-wide text-muted-foreground` |
-| Any number | add `tabular-nums` |
+| Use                | Classes                                                             |
+| ------------------ | ------------------------------------------------------------------- |
+| Page title (h1)    | `font-heading text-3xl font-medium tracking-tight`                  |
+| Section title (h2) | `font-heading text-xl font-medium tracking-tight`                   |
+| Card title         | `CardTitle` (already `font-heading`)                                |
+| Body               | `text-sm/relaxed`                                                   |
+| Secondary body     | `text-sm/relaxed text-muted-foreground`                             |
+| Micro label        | `text-xs font-medium uppercase tracking-wide text-muted-foreground` |
+| Any number         | add `tabular-nums`                                                  |
 
 Headings use `font-medium`, not bold — the serif carries the weight. Cap body
 copy at `max-w-2xl` so lines stay readable.
@@ -165,7 +165,7 @@ where the surface begins and ends; a rule inside it just chops the surface up.
 - **Buttons** — `default` = solid terracotta, one per screen. `outline` for the
   neighbouring action, `ghost` for table-row and toolbar actions, `secondary`
   for quiet fills. `destructive` is a **soft tint** (`bg-destructive/10
-  text-destructive`), not a solid red block. Sizes: `xs` in table rows, `sm` in
+text-destructive`), not a solid red block. Sizes: `xs` in table rows, `sm` in
   dense toolbars, `default` elsewhere.
 - **Inputs** — filled (`bg-input/30`) with a **visible** `border-input` hairline
   that turns into a ring on focus and red when invalid. Never add your own
@@ -187,8 +187,10 @@ where the surface begins and ends; a rule inside it just chops the surface up.
 - Content column: `mx-auto w-full max-w-225 px-6` (900 px). Header and main
   share the same column so their edges line up.
 - Vertical rhythm: `py-10`–`py-12` between sections, `Separator` between them.
-- Header is a single row: mark + name on the left, then the search field, nav
-  and the current user's menu grouped together on the right, one `border-b`.
+- Header is a single row: mark + name on the left, then the search field, nav,
+  the current user's menu and the «Mørk | Lys» `ThemeSwitch`
+  (`components/theme-switch.tsx`) grouped together on the right, one
+  `border-b`. The switch shows for signed-out visitors too.
   The search field is the group's first item, `w-56` from `sm` up and a
   full-width row of its own below `sm`. It is left out on `/sok`, whose own
   field holds the search. The user menu is a `DropdownMenuTrigger` styled with
@@ -201,7 +203,7 @@ where the surface begins and ends; a rule inside it just chops the surface up.
 
 ## Data display
 
-- **Records go in a `Table`, never in a grid of cards.** One card may *contain*
+- **Records go in a `Table`, never in a grid of cards.** One card may _contain_
   the table — that is the reference pattern — but a card per record is wrong.
 - Wrap the table in a `Card`: a `CardHeader` with the title, a one-line
   description, and a `CardAction` holding an outline "Vis alle" button; then
@@ -230,16 +232,16 @@ where the surface begins and ends; a rule inside it just chops the surface up.
 - Right-align numeric columns and add `tabular-nums`; left-align text. The
   headline value on the right gets `font-medium`; supporting columns stay muted.
 - Column headers are quiet: `h-9 text-xs font-medium uppercase tracking-wide
-  text-muted-foreground`, no fill.
+text-muted-foreground`, no fill.
 - Row actions live in **one overflow menu**, not as a button per action: a
   `DropdownMenuTrigger` carrying `buttonVariants({ variant: "ghost", size:
-  "icon-sm" })` with `MoreVerticalIcon`, and a `DropdownMenuContent
-  align="end"`.
+"icon-sm" })` with `MoreVerticalIcon`, and a `DropdownMenuContent
+align="end"`.
   Style the trigger with `buttonVariants`, **never** `render={<Button/>}`. The
   nested render makes Base UI merge two `data-slot` values, and it does not pick
   the same winner on the server as on the client — the result is a hydration
   mismatch that varies row by row. The class string is identical either way.
-- A menu item that **submits** needs its `<form>` rendered *outside* the
+- A menu item that **submits** needs its `<form>` rendered _outside_ the
   `DropdownMenuContent`, with the item pointing at it via the native `form`
   attribute (`<button type="submit" form="...">`, plus `nativeButton` on the
   item). The popup unmounts the instant an item is pressed, and a form torn out

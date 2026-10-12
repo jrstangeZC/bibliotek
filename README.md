@@ -100,9 +100,9 @@ Cookien `borrowerId` avgjør hvem du er:
 | en id   | den personen                                                   |
 | `none`  | ingen, satt av en bevisst utlogging                            |
 
-Cookien `tema` avgjør fargene. Den settes fra brukermenyen øverst til høyre
-(«Mørk modus» / «Lys modus»), og rotlayouten leser den, så siden kommer ferdig i
-riktig tema fra serveren:
+Cookien `tema` avgjør fargene. Den settes med bryteren «Mørk | Lys» til høyre
+for brukermenyen i toppmenyen, og rotlayouten leser den, så siden kommer ferdig
+i riktig tema fra serveren:
 
 | Cookie  | Tema  |
 | ------- | ----- |

@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
-import type { ReactNode } from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
+import type { Metadata } from "next"
+import { cookies } from "next/headers"
+import type { ReactNode } from "react"
+import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
   ArrowDown01Icon,
@@ -14,12 +15,13 @@ import {
   RefreshIcon,
   Search01Icon,
   SearchRemoveIcon,
-} from "@hugeicons/core-free-icons";
+} from "@hugeicons/core-free-icons"
 
-import { DetailRow } from "@/components/detail-row";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { DetailRow } from "@/components/detail-row"
+import { ThemeSwitch } from "@/components/theme-switch"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
   CardAction,
@@ -28,14 +30,14 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyContent,
@@ -43,29 +45,29 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty";
+} from "@/components/ui/empty"
 import {
   Field,
   FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-} from "@/components/ui/input-group";
+} from "@/components/ui/input-group"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import {
   Table,
   TableBody,
@@ -73,27 +75,28 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
-import { Logo, Wordmark } from "@/components/logo";
-import { HeaderSearch } from "@/components/site-search";
-import { cn } from "@/lib/utils";
+} from "@/components/ui/table"
+import { Textarea } from "@/components/ui/textarea"
+import { Logo, Wordmark } from "@/components/logo"
+import { HeaderSearch } from "@/components/site-search"
+import { parseTheme, THEME_COOKIE } from "@/lib/theme"
+import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = {
   title: "Stilguide – Bibliotek",
   description: "Det visuelle språket i utlånssystemet",
-};
+}
 
 /* -------------------------------------------------------------------------
    Sample data — hardcoded on purpose. This page has no data layer.
    ---------------------------------------------------------------------- */
 
 const books: {
-  title: string;
-  author: string;
-  year: number;
-  available: number;
-  total: number;
+  title: string
+  author: string
+  year: number
+  available: number
+  total: number
 }[] = [
   {
     title: "Sult",
@@ -130,21 +133,16 @@ const books: {
     available: 0,
     total: 1,
   },
-];
+]
 
 const navigation = [
   { label: "Bøker", current: true },
   { label: "Utlån", current: false },
   { label: "Brukere", current: false },
   { label: "Innstillinger", current: false },
-];
+]
 
-const shelves = [
-  "Skjønnlitteratur",
-  "Fagbøker",
-  "Barn og ungdom",
-  "Magasin",
-];
+const shelves = ["Skjønnlitteratur", "Fagbøker", "Barn og ungdom", "Magasin"]
 
 /* -------------------------------------------------------------------------
    Page scaffolding
@@ -155,9 +153,9 @@ function Section({
   title,
   children,
 }: {
-  number: string;
-  title: string;
-  children: ReactNode;
+  number: string
+  title: string
+  children: ReactNode
 }) {
   return (
     <section className="py-10">
@@ -171,14 +169,16 @@ function Section({
       </div>
       {children}
     </section>
-  );
+  )
 }
 
 /* -------------------------------------------------------------------------
    Page
    ---------------------------------------------------------------------- */
 
-export default function StylePage() {
+export default async function StylePage() {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value)
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* 1 — Header */}
@@ -255,10 +255,10 @@ export default function StylePage() {
                 </div>
                 <p className="text-sm/relaxed text-muted-foreground">
                   Bruk <code className="font-mono text-xs">Wordmark</code> der
-                  appen navngir seg selv, og <code className="font-mono text-xs">Logo</code>{" "}
-                  alene når navnet allerede står ved siden av. Minste brukbare
-                  størrelse er <code className="font-mono text-xs">size-5</code>{" "}
-                  (20 px).
+                  appen navngir seg selv, og{" "}
+                  <code className="font-mono text-xs">Logo</code> alene når
+                  navnet allerede står ved siden av. Minste brukbare størrelse
+                  er <code className="font-mono text-xs">size-5</code> (20 px).
                 </p>
               </div>
             </CardContent>
@@ -312,6 +312,13 @@ export default function StylePage() {
           <p className="mt-4 text-sm text-muted-foreground">
             Primærknappen brukes én gang per skjermbilde. Fareknappen er
             forbeholdt handlinger som ikke kan angres.
+          </p>
+          <div className="mt-6">
+            <ThemeSwitch theme={theme} />
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Temabryteren står til høyre for brukermenyen i toppmenyen. Tommelen
+            glir mot temaet som er i bruk, og begge ordene kan trykkes på.
           </p>
         </Section>
 
@@ -461,9 +468,9 @@ export default function StylePage() {
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
             Den andre raden er reservasjoner. «Klar til henting» får
             aksentfargen fordi låneren skal gjøre noe; resten er nøytrale.
-            «Holdt av» står på en tittel der eksemplaret er i huset, men satt
-            av til noen andre. Fristen for henting vises alltid ved siden av,
-            som dato.
+            «Holdt av» står på en tittel der eksemplaret er i huset, men satt av
+            til noen andre. Fristen for henting vises alltid ved siden av, som
+            dato.
           </p>
         </Section>
 
@@ -488,15 +495,16 @@ export default function StylePage() {
 
                   <Field>
                     <FieldLabel htmlFor="book-author">Forfatter</FieldLabel>
-                    <Input
-                      id="book-author"
-                      placeholder="Etternavn, fornavn"
-                    />
+                    <Input id="book-author" placeholder="Etternavn, fornavn" />
                   </Field>
 
                   <Field>
                     <FieldLabel htmlFor="book-year">Utgivelsesår</FieldLabel>
-                    <Input id="book-year" inputMode="numeric" defaultValue="1996" />
+                    <Input
+                      id="book-year"
+                      inputMode="numeric"
+                      defaultValue="1996"
+                    />
                     <FieldDescription>
                       Fire siffer. La stå tomt hvis året er ukjent.
                     </FieldDescription>
@@ -574,7 +582,9 @@ export default function StylePage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Kristin Lavransdatter</CardTitle>
-              <CardDescription>Sigrid Undset · 1920 · Aschehoug</CardDescription>
+              <CardDescription>
+                Sigrid Undset · 1920 · Aschehoug
+              </CardDescription>
               <CardAction>
                 <Badge variant="secondary">Utlånt</Badge>
               </CardAction>
@@ -672,14 +682,12 @@ export default function StylePage() {
                   aria-invalid
                   className="sm:max-w-xs"
                 />
-                <FieldError>
-                  Lånetiden kan ikke overstige 28 dager.
-                </FieldError>
+                <FieldError>Lånetiden kan ikke overstige 28 dager.</FieldError>
               </Field>
             </CardContent>
           </Card>
         </Section>
       </main>
     </div>
-  );
+  )
 }

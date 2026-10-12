@@ -6,8 +6,6 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowDown01Icon,
   Logout02Icon,
-  Moon02Icon,
-  Sun03Icon,
   UserEdit01Icon,
   UserSwitchIcon,
 } from "@hugeicons/core-free-icons"
@@ -24,7 +22,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { setThemeAction, signOutAction } from "@/lib/actions"
+import { ThemeSwitch } from "@/components/theme-switch"
+import { signOutAction } from "@/lib/actions"
 import type { Theme } from "@/lib/theme"
 import type { Borrower } from "@/lib/types"
 
@@ -59,13 +58,10 @@ function isCurrent(href: string, pathname: string): boolean {
  */
 const LOGOUT_FORM = "logout"
 
-/** Same reason as {@link LOGOUT_FORM}: the theme switch submits from the menu. */
-const THEME_FORM = "theme"
-
 /**
  * `readyCount` is how many copies are held for `user` — shown beside «Mine lån»
  * so a hold is hard to miss from anywhere in the app. `theme` is the one in
- * use; the menu offers the other.
+ * use, for the switch beside the user menu.
  */
 export function SiteHeader({
   user,
@@ -78,7 +74,6 @@ export function SiteHeader({
 }) {
   const pathname = usePathname()
   const librarian = user?.role === "librarian"
-  const nextTheme: Theme = theme === "dark" ? "light" : "dark"
 
   return (
     <header className="border-b border-border bg-card">
@@ -137,13 +132,10 @@ export function SiteHeader({
                 action={signOutAction}
                 className="hidden"
               />
-              <form id={THEME_FORM} action={setThemeAction} className="hidden">
-                <input type="hidden" name="theme" value={nextTheme} />
-              </form>
               <DropdownMenu>
                 <DropdownMenuTrigger
                   className={buttonVariants({ variant: "ghost", size: "sm" })}
-                  aria-label={`Innlogget som ${user.name}. Profil, tema, bytt bruker eller logg ut`}
+                  aria-label={`Innlogget som ${user.name}. Profil, bytt bruker eller logg ut`}
                 >
                   {user.name}
                   <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} />
@@ -162,16 +154,6 @@ export function SiteHeader({
                   <DropdownMenuItem render={<Link href="/profil" />}>
                     <HugeiconsIcon icon={UserEdit01Icon} strokeWidth={2} />
                     Min profil
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    nativeButton
-                    render={<button type="submit" form={THEME_FORM} />}
-                  >
-                    <HugeiconsIcon
-                      icon={nextTheme === "dark" ? Moon02Icon : Sun03Icon}
-                      strokeWidth={2}
-                    />
-                    {nextTheme === "dark" ? "Mørk modus" : "Lys modus"}
                   </DropdownMenuItem>
                   <DropdownMenuItem render={<Link href="/logg-inn" />}>
                     <HugeiconsIcon icon={UserSwitchIcon} strokeWidth={2} />
@@ -196,6 +178,10 @@ export function SiteHeader({
               Logg inn
             </Button>
           )}
+
+          {/* For everyone, signed in or not: colours are a display choice,
+              not anything about the account. */}
+          <ThemeSwitch theme={theme} />
         </div>
       </div>
     </header>
