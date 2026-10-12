@@ -1,41 +1,54 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { HugeiconsIcon } from "@hugeicons/react";
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowDown01Icon,
   Logout02Icon,
+  Moon02Icon,
+  Sun03Icon,
   UserEdit01Icon,
   UserSwitchIcon,
-} from "@hugeicons/core-free-icons";
+} from "@hugeicons/core-free-icons"
 
-import { Wordmark } from "@/components/logo";
-import { RoleBadge } from "@/components/role-badge";
-import { HeaderSearch } from "@/components/site-search";
-import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Wordmark } from "@/components/logo"
+import { RoleBadge } from "@/components/role-badge"
+import { HeaderSearch } from "@/components/site-search"
+import { Badge } from "@/components/ui/badge"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { signOutAction } from "@/lib/actions";
-import type { Borrower } from "@/lib/types";
+} from "@/components/ui/dropdown-menu"
+import { setThemeAction, signOutAction } from "@/lib/actions"
+import type { Theme } from "@/lib/theme"
+import type { Borrower } from "@/lib/types"
 
 const navigation = [
   { href: "/", label: "Bøker", needsUser: false, librarianOnly: false },
-  { href: "/mine-laan", label: "Mine lån", needsUser: true, librarianOnly: false },
-  { href: "/admin", label: "Administrasjon", needsUser: true, librarianOnly: true },
-];
+  {
+    href: "/mine-laan",
+    label: "Mine lån",
+    needsUser: true,
+    librarianOnly: false,
+  },
+  {
+    href: "/admin",
+    label: "Administrasjon",
+    needsUser: true,
+    librarianOnly: true,
+  },
+]
 
 /** A book detail page is still the "Bøker" part of the app. */
 function isCurrent(href: string, pathname: string): boolean {
-  if (href === "/") return pathname === "/" || pathname.startsWith("/boker");
-  if (href === "/admin") return pathname.startsWith("/admin");
-  return pathname === href;
+  if (href === "/") return pathname === "/" || pathname.startsWith("/boker")
+  if (href === "/admin") return pathname.startsWith("/admin")
+  return pathname === href
 }
 
 /**
@@ -44,21 +57,28 @@ function isCurrent(href: string, pathname: string): boolean {
  * completes — so the menu item points at this one with the native `form`
  * attribute instead of wrapping itself in a copy.
  */
-const LOGOUT_FORM = "logout";
+const LOGOUT_FORM = "logout"
+
+/** Same reason as {@link LOGOUT_FORM}: the theme switch submits from the menu. */
+const THEME_FORM = "theme"
 
 /**
  * `readyCount` is how many copies are held for `user` — shown beside «Mine lån»
- * so a hold is hard to miss from anywhere in the app.
+ * so a hold is hard to miss from anywhere in the app. `theme` is the one in
+ * use; the menu offers the other.
  */
 export function SiteHeader({
   user,
   readyCount = 0,
+  theme,
 }: {
-  user: Borrower | null;
-  readyCount?: number;
+  user: Borrower | null
+  readyCount?: number
+  theme: Theme
 }) {
-  const pathname = usePathname();
-  const librarian = user?.role === "librarian";
+  const pathname = usePathname()
+  const librarian = user?.role === "librarian"
+  const nextTheme: Theme = theme === "dark" ? "light" : "dark"
 
   return (
     <header className="border-b border-border bg-card">
@@ -75,9 +95,11 @@ export function SiteHeader({
           <nav aria-label="Hovedmeny">
             <ul className="flex flex-wrap items-center gap-1">
               {navigation
-                .filter((item) => (user ? librarian || !item.librarianOnly : !item.needsUser))
+                .filter((item) =>
+                  user ? librarian || !item.librarianOnly : !item.needsUser
+                )
                 .map((item) => {
-                  const current = isCurrent(item.href, pathname);
+                  const current = isCurrent(item.href, pathname)
 
                   return (
                     <li key={item.href}>
@@ -103,18 +125,25 @@ export function SiteHeader({
                         ) : null}
                       </Link>
                     </li>
-                  );
+                  )
                 })}
             </ul>
           </nav>
 
           {user ? (
             <>
-              <form id={LOGOUT_FORM} action={signOutAction} className="hidden" />
+              <form
+                id={LOGOUT_FORM}
+                action={signOutAction}
+                className="hidden"
+              />
+              <form id={THEME_FORM} action={setThemeAction} className="hidden">
+                <input type="hidden" name="theme" value={nextTheme} />
+              </form>
               <DropdownMenu>
                 <DropdownMenuTrigger
                   className={buttonVariants({ variant: "ghost", size: "sm" })}
-                  aria-label={`Innlogget som ${user.name}. Profil, bytt bruker eller logg ut`}
+                  aria-label={`Innlogget som ${user.name}. Profil, tema, bytt bruker eller logg ut`}
                 >
                   {user.name}
                   <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} />
@@ -134,6 +163,16 @@ export function SiteHeader({
                     <HugeiconsIcon icon={UserEdit01Icon} strokeWidth={2} />
                     Min profil
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    nativeButton
+                    render={<button type="submit" form={THEME_FORM} />}
+                  >
+                    <HugeiconsIcon
+                      icon={nextTheme === "dark" ? Moon02Icon : Sun03Icon}
+                      strokeWidth={2}
+                    />
+                    {nextTheme === "dark" ? "Mørk modus" : "Lys modus"}
+                  </DropdownMenuItem>
                   <DropdownMenuItem render={<Link href="/logg-inn" />}>
                     <HugeiconsIcon icon={UserSwitchIcon} strokeWidth={2} />
                     Bytt bruker
@@ -149,12 +188,16 @@ export function SiteHeader({
               </DropdownMenu>
             </>
           ) : (
-            <Button size="sm" nativeButton={false} render={<Link href="/logg-inn" />}>
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/logg-inn" />}
+            >
               Logg inn
             </Button>
           )}
         </div>
       </div>
     </header>
-  );
+  )
 }

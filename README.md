@@ -16,21 +16,21 @@ npm run reset-data # tilbake til utgangspunktet i data/seed.json
 
 ## Sider
 
-| Adresse | Hva den gjør |
-| --- | --- |
-| `/` | Hele samlingen, med hvor mange eksemplarer som er ledige |
-| `/boker/[id]` | Detaljer om én tittel, og knappen som låner eller reserverer den |
-| `/sok` | Søk på tvers av bøker, personer, lån og reservasjoner. Hva du får treff i, avhenger av hvem du er (se [`docs/sok-spec.md`](docs/sok-spec.md)) |
-| `/mine-laan` | Lånene og reservasjonene dine, med frister, status og gebyr — og forlengelse av lån |
-| `/admin` | Alle aktive lån, med registrering av retur |
-| `/admin/reservasjoner` | Køene, og eksemplarer på hentehylla som må flyttes |
-| `/admin/utboks` | E-postene systemet har sendt (`/[id]` viser én) |
-| `/admin/boker` | Katalogen — opprett, rediger og slett bøker (`/ny`, `/[id]`, `/[id]/slett`) |
-| `/admin/brukere` | Brukerregisteret — alle lånere og bibliotekarer, med redigering (`/[id]`) |
-| `/admin/innstillinger` | Innstillinger for demoen, og tilbakestilling av datagrunnlaget |
-| `/profil` | Navnet, e-postadressen og e-postvarslene dine |
-| `/logg-inn` | Velg hvem du vil bruke systemet som |
-| `/stil` | Stilguiden — alle komponenter og tilstander på én side |
+| Adresse                | Hva den gjør                                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                    | Hele samlingen, med hvor mange eksemplarer som er ledige                                                                                      |
+| `/boker/[id]`          | Detaljer om én tittel, og knappen som låner eller reserverer den                                                                              |
+| `/sok`                 | Søk på tvers av bøker, personer, lån og reservasjoner. Hva du får treff i, avhenger av hvem du er (se [`docs/sok-spec.md`](docs/sok-spec.md)) |
+| `/mine-laan`           | Lånene og reservasjonene dine, med frister, status og gebyr — og forlengelse av lån                                                           |
+| `/admin`               | Alle aktive lån, med registrering av retur                                                                                                    |
+| `/admin/reservasjoner` | Køene, og eksemplarer på hentehylla som må flyttes                                                                                            |
+| `/admin/utboks`        | E-postene systemet har sendt (`/[id]` viser én)                                                                                               |
+| `/admin/boker`         | Katalogen — opprett, rediger og slett bøker (`/ny`, `/[id]`, `/[id]/slett`)                                                                   |
+| `/admin/brukere`       | Brukerregisteret — alle lånere og bibliotekarer, med redigering (`/[id]`)                                                                     |
+| `/admin/innstillinger` | Innstillinger for demoen, og tilbakestilling av datagrunnlaget                                                                                |
+| `/profil`              | Navnet, e-postadressen og e-postvarslene dine                                                                                                 |
+| `/logg-inn`            | Velg hvem du vil bruke systemet som                                                                                                           |
+| `/stil`                | Stilguiden — alle komponenter og tilstander på én side                                                                                        |
 
 ## API
 
@@ -94,11 +94,21 @@ kan ikke miste rollen — da ville ingen kommet inn i administrasjonen igjen.
 
 Cookien `borrowerId` avgjør hvem du er:
 
-| Cookie | Hvem du er |
-| --- | --- |
+| Cookie  | Hvem du er                                                     |
+| ------- | -------------------------------------------------------------- |
 | mangler | første låner i seed — så demoen alltid åpner på noe som virker |
-| en id | den personen |
-| `none` | ingen, satt av en bevisst utlogging |
+| en id   | den personen                                                   |
+| `none`  | ingen, satt av en bevisst utlogging                            |
+
+Cookien `tema` avgjør fargene. Den settes fra brukermenyen øverst til høyre
+(«Mørk modus» / «Lys modus»), og rotlayouten leser den, så siden kommer ferdig i
+riktig tema fra serveren:
+
+| Cookie  | Tema  |
+| ------- | ----- |
+| mangler | lyst  |
+| `light` | lyst  |
+| `dark`  | mørkt |
 
 ## Forretningsregler
 

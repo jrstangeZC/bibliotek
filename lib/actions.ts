@@ -1,8 +1,8 @@
-"use server";
+"use server"
 
-import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache"
+import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 
 import {
   BORROWER_COOKIE,
@@ -11,9 +11,13 @@ import {
   homePathFor,
   isLibrarian,
   SIGNED_OUT,
-} from "@/lib/auth";
-import { readBookForm, validateBook } from "@/lib/books";
-import { EMAIL_TAKEN_MESSAGE, readBorrowerForm, validateBorrower } from "@/lib/borrowers";
+} from "@/lib/auth"
+import { readBookForm, validateBook } from "@/lib/books"
+import {
+  EMAIL_TAKEN_MESSAGE,
+  readBorrowerForm,
+  validateBorrower,
+} from "@/lib/borrowers"
 import {
   createBook,
   createBorrower,
@@ -23,14 +27,15 @@ import {
   resetDatabase,
   updateBook,
   updateBorrower,
-} from "@/lib/db";
+} from "@/lib/db"
 import {
   bookErrorSlug,
   errorSlug,
   renewalErrorSlug,
   reservationErrorSlug,
-} from "@/lib/errors";
-import type { BookFormState, BorrowerFormState } from "@/lib/forms";
+} from "@/lib/errors"
+import type { BookFormState, BorrowerFormState } from "@/lib/forms"
+import { parseTheme, THEME_COOKIE, THEME_COOKIE_MAX_AGE } from "@/lib/theme"
 import {
   borrowBook,
   cancelReservation,
@@ -38,53 +43,57 @@ import {
   registerReturn,
   renewLoan,
   reserveBook,
-} from "@/lib/loans";
+} from "@/lib/loans"
 
 /**
  * Every screen that shows a loan, a reservation or an availability count. The
  * layout is in it too: its banner tells a borrower when a copy is held for them.
  */
 function revalidateLoanViews(bookId?: string) {
-  revalidatePath("/", "layout");
-  revalidatePath("/mine-laan");
-  revalidatePath("/admin");
-  revalidatePath("/admin/reservasjoner");
-  if (bookId) revalidatePath(`/boker/${bookId}`);
+  revalidatePath("/", "layout")
+  revalidatePath("/mine-laan")
+  revalidatePath("/admin")
+  revalidatePath("/admin/reservasjoner")
+  if (bookId) revalidatePath(`/boker/${bookId}`)
 }
 
 /** Lends the book on the detail page to whoever is browsing. */
 export async function borrowBookAction(formData: FormData) {
-  const bookId = String(formData.get("bookId") ?? "");
-  const borrower = await getCurrentBorrower();
-  if (!borrower) redirect("/logg-inn");
+  const bookId = String(formData.get("bookId") ?? "")
+  const borrower = await getCurrentBorrower()
+  if (!borrower) redirect("/logg-inn")
 
-  const result = await borrowBook(bookId, borrower.id);
+  const result = await borrowBook(bookId, borrower.id)
 
   if (!result.ok) {
-    redirect(`/boker/${encodeURIComponent(bookId)}?feil=${errorSlug(result.error)}`);
+    redirect(
+      `/boker/${encodeURIComponent(bookId)}?feil=${errorSlug(result.error)}`
+    )
   }
 
-  revalidateLoanViews(bookId);
-  redirect("/mine-laan");
+  revalidateLoanViews(bookId)
+  redirect("/mine-laan")
 }
 
 /** Takes a book back in from the administration screen. */
 export async function returnLoanAction(formData: FormData) {
-  const actor = await getCurrentBorrower();
-  if (!actor || !isLibrarian(actor)) redirect("/logg-inn");
+  const actor = await getCurrentBorrower()
+  if (!actor || !isLibrarian(actor)) redirect("/logg-inn")
 
-  const loanId = String(formData.get("loanId") ?? "");
-  const result = await registerReturn(loanId);
+  const loanId = String(formData.get("loanId") ?? "")
+  const result = await registerReturn(loanId)
 
   if (!result.ok) {
-    redirect(`/admin?feil=${errorSlug(result.error)}`);
+    redirect(`/admin?feil=${errorSlug(result.error)}`)
   }
 
-  revalidateLoanViews(result.loan.bookId);
+  revalidateLoanViews(result.loan.bookId)
   // The copy goes on the pickup shelf, not back among the rest — say so.
   redirect(
-    result.heldFor ? `/admin?holdt=${encodeURIComponent(result.heldFor.id)}` : "/admin"
-  );
+    result.heldFor
+      ? `/admin?holdt=${encodeURIComponent(result.heldFor.id)}`
+      : "/admin"
+  )
 }
 
 /**
@@ -93,17 +102,20 @@ export async function returnLoanAction(formData: FormData) {
  * that belong to `borrower`, so a forged id gets "not found".
  */
 export async function renewLoanAction(formData: FormData) {
-  const borrower = await getCurrentBorrower();
-  if (!borrower) redirect("/logg-inn");
+  const borrower = await getCurrentBorrower()
+  if (!borrower) redirect("/logg-inn")
 
-  const result = await renewLoan(String(formData.get("loanId") ?? ""), borrower.id);
+  const result = await renewLoan(
+    String(formData.get("loanId") ?? ""),
+    borrower.id
+  )
 
   if (!result.ok) {
-    redirect(`/mine-laan?feil=${renewalErrorSlug(result.error)}`);
+    redirect(`/mine-laan?feil=${renewalErrorSlug(result.error)}`)
   }
 
-  revalidateLoanViews(result.loan.bookId);
-  redirect(`/mine-laan?forlenget=${encodeURIComponent(result.loan.id)}`);
+  revalidateLoanViews(result.loan.bookId)
+  redirect(`/mine-laan?forlenget=${encodeURIComponent(result.loan.id)}`)
 }
 
 /**
@@ -112,20 +124,20 @@ export async function renewLoanAction(formData: FormData) {
  * in the write, so a stale page cannot get round them.
  */
 export async function reserveBookAction(formData: FormData) {
-  const bookId = String(formData.get("bookId") ?? "");
-  const borrower = await getCurrentBorrower();
-  if (!borrower) redirect("/logg-inn");
+  const bookId = String(formData.get("bookId") ?? "")
+  const borrower = await getCurrentBorrower()
+  if (!borrower) redirect("/logg-inn")
 
-  const result = await reserveBook(bookId, borrower.id);
+  const result = await reserveBook(bookId, borrower.id)
 
   if (!result.ok) {
     redirect(
       `/boker/${encodeURIComponent(bookId)}?feil=${reservationErrorSlug(result.error)}`
-    );
+    )
   }
 
-  revalidateLoanViews(bookId);
-  redirect(`/mine-laan?reservert=${encodeURIComponent(result.reservation.id)}`);
+  revalidateLoanViews(bookId)
+  redirect(`/mine-laan?reservert=${encodeURIComponent(result.reservation.id)}`)
 }
 
 /**
@@ -133,57 +145,62 @@ export async function reserveBookAction(formData: FormData) {
  * whose reservation it is comes from the session, not the form.
  */
 export async function cancelOwnReservationAction(formData: FormData) {
-  const borrower = await getCurrentBorrower();
-  if (!borrower) redirect("/logg-inn");
+  const borrower = await getCurrentBorrower()
+  if (!borrower) redirect("/logg-inn")
 
   const result = await cancelReservation(
     String(formData.get("reservationId") ?? ""),
     borrower.id
-  );
+  )
 
   if (!result.ok) {
-    redirect(`/mine-laan?feil=${reservationErrorSlug(result.error)}`);
+    redirect(`/mine-laan?feil=${reservationErrorSlug(result.error)}`)
   }
 
-  revalidateLoanViews(result.reservation.bookId);
-  redirect("/mine-laan?avbestilt=1");
+  revalidateLoanViews(result.reservation.bookId)
+  redirect("/mine-laan?avbestilt=1")
 }
 
 /** Cancels anyone's reservation from the desk. */
 export async function cancelReservationAction(formData: FormData) {
-  await requireLibrarianForAction();
+  await requireLibrarianForAction()
 
-  const result = await cancelReservation(String(formData.get("reservationId") ?? ""), null);
+  const result = await cancelReservation(
+    String(formData.get("reservationId") ?? ""),
+    null
+  )
 
   if (!result.ok) {
-    redirect(`/admin/reservasjoner?feil=${reservationErrorSlug(result.error)}`);
+    redirect(`/admin/reservasjoner?feil=${reservationErrorSlug(result.error)}`)
   }
 
-  revalidateLoanViews(result.reservation.bookId);
-  redirect("/admin/reservasjoner?avbestilt=1");
+  revalidateLoanViews(result.reservation.bookId)
+  redirect("/admin/reservasjoner?avbestilt=1")
 }
 
 /** The desk confirms it has moved a copy whose hold ended uncollected. */
 export async function markHoldHandledAction(formData: FormData) {
-  await requireLibrarianForAction();
+  await requireLibrarianForAction()
 
-  const reservation = await markHoldHandled(String(formData.get("reservationId") ?? ""));
+  const reservation = await markHoldHandled(
+    String(formData.get("reservationId") ?? "")
+  )
 
-  if (!reservation) redirect("/admin/reservasjoner?feil=hold-handtert");
+  if (!reservation) redirect("/admin/reservasjoner?feil=hold-handtert")
 
-  revalidatePath("/admin/reservasjoner");
-  redirect("/admin/reservasjoner?handtert=1");
+  revalidatePath("/admin/reservasjoner")
+  redirect("/admin/reservasjoner?handtert=1")
 }
 
 /* -------------------------------------------------------------- catalogue --- */
 
 /** Every screen that lists a title or links to its page. */
 function revalidateCatalogue() {
-  revalidatePath("/");
-  revalidatePath("/admin");
-  revalidatePath("/admin/boker");
-  revalidatePath("/boker/[id]", "page");
-  revalidatePath("/sok");
+  revalidatePath("/")
+  revalidatePath("/admin")
+  revalidatePath("/admin/boker")
+  revalidatePath("/boker/[id]", "page")
+  revalidatePath("/sok")
 }
 
 /**
@@ -192,8 +209,8 @@ function revalidateCatalogue() {
  * or not a page links to it.
  */
 async function requireLibrarianForAction() {
-  const actor = await getCurrentBorrower();
-  if (!actor || !isLibrarian(actor)) redirect("/logg-inn");
+  const actor = await getCurrentBorrower()
+  if (!actor || !isLibrarian(actor)) redirect("/logg-inn")
 }
 
 /** Adds a title to the catalogue. */
@@ -201,22 +218,25 @@ export async function createBookAction(
   _previous: BookFormState,
   formData: FormData
 ): Promise<BookFormState> {
-  await requireLibrarianForAction();
+  await requireLibrarianForAction()
 
-  const values = readBookForm(formData);
-  const checked = validateBook(values);
-  if (!checked.ok) return { values, error: checked.error };
+  const values = readBookForm(formData)
+  const checked = validateBook(values)
+  if (!checked.ok) return { values, error: checked.error }
 
-  const result = await createBook(checked.book);
+  const result = await createBook(checked.book)
   if (!result.ok) {
     return {
       values,
-      error: { field: "isbn", message: "Et annet eksemplar i katalogen har allerede dette ISBN-et." },
-    };
+      error: {
+        field: "isbn",
+        message: "Et annet eksemplar i katalogen har allerede dette ISBN-et.",
+      },
+    }
   }
 
-  revalidateCatalogue();
-  redirect(`/admin/boker?ny=${encodeURIComponent(result.book.id)}`);
+  revalidateCatalogue()
+  redirect(`/admin/boker?ny=${encodeURIComponent(result.book.id)}`)
 }
 
 /** Saves changes to a title. The id travels in the form, next to the fields it belongs to. */
@@ -224,21 +244,24 @@ export async function updateBookAction(
   _previous: BookFormState,
   formData: FormData
 ): Promise<BookFormState> {
-  await requireLibrarianForAction();
+  await requireLibrarianForAction()
 
-  const id = String(formData.get("id") ?? "");
-  const values = readBookForm(formData);
-  const checked = validateBook(values);
-  if (!checked.ok) return { values, error: checked.error };
+  const id = String(formData.get("id") ?? "")
+  const values = readBookForm(formData)
+  const checked = validateBook(values)
+  if (!checked.ok) return { values, error: checked.error }
 
-  const result = await updateBook(id, checked.book);
+  const result = await updateBook(id, checked.book)
 
   if (!result.ok) {
     if (result.error === "isbn-taken") {
       return {
         values,
-        error: { field: "isbn", message: "Et annet eksemplar i katalogen har allerede dette ISBN-et." },
-      };
+        error: {
+          field: "isbn",
+          message: "Et annet eksemplar i katalogen har allerede dette ISBN-et.",
+        },
+      }
     }
 
     if (result.error === "copies-below-loans") {
@@ -250,30 +273,30 @@ export async function updateBookAction(
             ? `${result.onLoan} eksemplarer er ute på lån og ${result.held} er holdt av for noen i kø. Antallet kan ikke bli lavere før de er levert tilbake eller hentet.`
             : `${result.onLoan} eksemplarer er ute på lån nå. Antallet kan ikke bli lavere før de er levert tilbake.`,
         },
-      };
+      }
     }
 
     // What is left after the two field errors above: the title is already gone.
-    redirect(`/admin/boker?feil=${bookErrorSlug("book-not-found")}`);
+    redirect(`/admin/boker?feil=${bookErrorSlug("book-not-found")}`)
   }
 
-  revalidateCatalogue();
-  redirect(`/admin/boker?lagret=${encodeURIComponent(result.book.id)}`);
+  revalidateCatalogue()
+  redirect(`/admin/boker?lagret=${encodeURIComponent(result.book.id)}`)
 }
 
 /** Removes a title. Refused while a copy is out — see `deleteBook`. */
 export async function deleteBookAction(formData: FormData) {
-  await requireLibrarianForAction();
+  await requireLibrarianForAction()
 
-  const result = await deleteBook(String(formData.get("id") ?? ""));
+  const result = await deleteBook(String(formData.get("id") ?? ""))
 
   if (!result.ok) {
-    redirect(`/admin/boker?feil=${bookErrorSlug(result.error)}`);
+    redirect(`/admin/boker?feil=${bookErrorSlug(result.error)}`)
   }
 
-  revalidateCatalogue();
-  revalidatePath("/mine-laan");
-  redirect("/admin/boker?slettet=1");
+  revalidateCatalogue()
+  revalidatePath("/mine-laan")
+  redirect("/admin/boker?slettet=1")
 }
 
 /**
@@ -285,20 +308,20 @@ export async function deleteBookAction(formData: FormData) {
  * {@link DEMO_RESET_ENABLED} on top of that.
  */
 export async function resetDemoDataAction() {
-  if (!DEMO_RESET_ENABLED) redirect("/admin/innstillinger");
+  if (!DEMO_RESET_ENABLED) redirect("/admin/innstillinger")
 
-  const actor = await getCurrentBorrower();
-  if (!actor || !isLibrarian(actor)) redirect("/logg-inn");
+  const actor = await getCurrentBorrower()
+  if (!actor || !isLibrarian(actor)) redirect("/logg-inn")
 
-  await resetDatabase();
+  await resetDatabase()
 
-  revalidateLoanViews();
+  revalidateLoanViews()
   // Every title at once — a reset changes availability across the catalogue,
   // not just on the one book a borrow would have touched.
-  revalidatePath("/boker/[id]", "page");
-  revalidatePath("/admin/brukere");
-  revalidatePath("/logg-inn");
-  redirect("/admin/innstillinger?tilbakestilt=1");
+  revalidatePath("/boker/[id]", "page")
+  revalidatePath("/admin/brukere")
+  revalidatePath("/logg-inn")
+  redirect("/admin/innstillinger?tilbakestilt=1")
 }
 
 /* ----------------------------------------------------------------- who am I --- */
@@ -308,18 +331,18 @@ export async function resetDemoDataAction() {
  * so picking a name from the register is the whole of it.
  */
 export async function signInAction(formData: FormData) {
-  const id = String(formData.get("borrowerId") ?? "");
-  const borrower = await getBorrower(id);
-  if (!borrower) redirect("/logg-inn?feil=ukjent-laaner");
+  const id = String(formData.get("borrowerId") ?? "")
+  const borrower = await getBorrower(id)
+  if (!borrower) redirect("/logg-inn?feil=ukjent-laaner")
 
-  (await cookies()).set(BORROWER_COOKIE, borrower.id, {
+  ;(await cookies()).set(BORROWER_COOKIE, borrower.id, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
     maxAge: BORROWER_COOKIE_MAX_AGE,
-  });
+  })
 
-  redirect(homePathFor(borrower));
+  redirect(homePathFor(borrower))
 }
 
 /**
@@ -328,14 +351,33 @@ export async function signInAction(formData: FormData) {
  * seed fallback turns straight back into the first borrower.
  */
 export async function signOutAction() {
-  (await cookies()).set(BORROWER_COOKIE, SIGNED_OUT, {
+  ;(await cookies()).set(BORROWER_COOKIE, SIGNED_OUT, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
     maxAge: BORROWER_COOKIE_MAX_AGE,
-  });
+  })
 
-  redirect("/logg-inn");
+  redirect("/logg-inn")
+}
+
+/**
+ * Switches between light and dark. A display preference, not anything about
+ * who you are, so it needs no session check and works signed out too. Setting
+ * the cookie re-renders the current route, and the root layout picks it up.
+ */
+export async function setThemeAction(formData: FormData) {
+  ;(await cookies()).set(
+    THEME_COOKIE,
+    parseTheme(String(formData.get("theme") ?? "")),
+    {
+      sameSite: "lax",
+      path: "/",
+      maxAge: THEME_COOKIE_MAX_AGE,
+    }
+  )
+
+  revalidatePath("/", "layout")
 }
 
 /**
@@ -347,21 +389,21 @@ export async function registerBorrowerAction(
   _previous: BorrowerFormState,
   formData: FormData
 ): Promise<BorrowerFormState> {
-  await requireLibrarianForAction();
+  await requireLibrarianForAction()
 
-  const values = readBorrowerForm(formData);
-  const error = validateBorrower(values);
-  if (error) return { values, error };
+  const values = readBorrowerForm(formData)
+  const error = validateBorrower(values)
+  if (error) return { values, error }
 
-  const borrower = await createBorrower(values);
+  const borrower = await createBorrower(values)
   if (!borrower) {
-    return { values, error: { field: "email", message: EMAIL_TAKEN_MESSAGE } };
+    return { values, error: { field: "email", message: EMAIL_TAKEN_MESSAGE } }
   }
 
-  revalidatePath("/admin/brukere");
-  revalidatePath("/logg-inn");
-  revalidatePath("/sok");
-  redirect(`/admin/brukere?ny=${encodeURIComponent(borrower.id)}`);
+  revalidatePath("/admin/brukere")
+  revalidatePath("/logg-inn")
+  revalidatePath("/sok")
+  redirect(`/admin/brukere?ny=${encodeURIComponent(borrower.id)}`)
 }
 
 /**
@@ -372,18 +414,18 @@ export async function updateBorrowerAction(
   _previous: BorrowerFormState,
   formData: FormData
 ): Promise<BorrowerFormState> {
-  await requireLibrarianForAction();
+  await requireLibrarianForAction()
 
-  const id = String(formData.get("id") ?? "");
-  const values = readBorrowerForm(formData);
-  const error = validateBorrower(values);
-  if (error) return { values, error };
+  const id = String(formData.get("id") ?? "")
+  const values = readBorrowerForm(formData)
+  const error = validateBorrower(values)
+  if (error) return { values, error }
 
-  const result = await updateBorrower(id, values);
+  const result = await updateBorrower(id, values)
 
   if (!result.ok) {
     if (result.error === "email-taken") {
-      return { values, error: { field: "email", message: EMAIL_TAKEN_MESSAGE } };
+      return { values, error: { field: "email", message: EMAIL_TAKEN_MESSAGE } }
     }
     if (result.error === "last-librarian") {
       return {
@@ -393,14 +435,14 @@ export async function updateBorrowerAction(
           message:
             "Dette er den siste bibliotekaren. Gjør en annen til bibliotekar først, ellers kommer ingen inn i administrasjonen.",
         },
-      };
+      }
     }
-    redirect("/admin/brukere?feil=bruker-ikke-funnet");
+    redirect("/admin/brukere?feil=bruker-ikke-funnet")
   }
 
   // The name shows in the header and on every loan; refresh the lot.
-  revalidatePath("/", "layout");
-  return { saved: true };
+  revalidatePath("/", "layout")
+  return { saved: true }
 }
 
 /**
@@ -412,23 +454,23 @@ export async function updateOwnProfileAction(
   _previous: BorrowerFormState,
   formData: FormData
 ): Promise<BorrowerFormState> {
-  const actor = await getCurrentBorrower();
-  if (!actor) redirect("/logg-inn");
+  const actor = await getCurrentBorrower()
+  if (!actor) redirect("/logg-inn")
 
-  const values = { ...readBorrowerForm(formData), role: actor.role };
-  const error = validateBorrower(values);
-  if (error) return { values, error };
+  const values = { ...readBorrowerForm(formData), role: actor.role }
+  const error = validateBorrower(values)
+  if (error) return { values, error }
 
-  const result = await updateBorrower(actor.id, values);
+  const result = await updateBorrower(actor.id, values)
 
   if (!result.ok) {
     if (result.error === "email-taken") {
-      return { values, error: { field: "email", message: EMAIL_TAKEN_MESSAGE } };
+      return { values, error: { field: "email", message: EMAIL_TAKEN_MESSAGE } }
     }
     // The role never changes here, so the only failure left is a vanished entry.
-    redirect("/logg-inn?feil=ukjent-laaner");
+    redirect("/logg-inn?feil=ukjent-laaner")
   }
 
-  revalidatePath("/", "layout");
-  return { saved: true };
+  revalidatePath("/", "layout")
+  return { saved: true }
 }
