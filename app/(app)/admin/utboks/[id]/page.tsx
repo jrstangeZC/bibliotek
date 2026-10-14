@@ -6,7 +6,7 @@ import { LibrarianRequired } from "@/components/librarian-required";
 import { PageHeading } from "@/components/page-heading";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
-import { getOutboxMessage } from "@/lib/db";
+import { findOutboxMessage } from "@/lib/loans";
 import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export default async function OutboxMessagePage({
     );
   }
 
-  const message = await getOutboxMessage((await params).id);
+  const message = await findOutboxMessage((await params).id);
   if (!message) notFound();
 
   return (

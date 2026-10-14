@@ -49,8 +49,7 @@ import {
 } from "@/components/ui/table"
 import { borrowBookAction, reserveBookAction } from "@/lib/actions"
 import { getCurrentBorrower } from "@/lib/auth"
-import { searchBooks } from "@/lib/search"
-import { listBooks, type BookView } from "@/lib/loans"
+import { searchCatalogue, type BookView } from "@/lib/loans"
 
 export const dynamic = "force-dynamic"
 
@@ -126,8 +125,7 @@ export default async function BooksPage({ searchParams }: PageProps<"/">) {
     getCurrentBorrower(),
     searchParams,
   ])
-  const books = await listBooks(new Date(), viewer?.id ?? null)
-  const { query, matches } = searchBooks(books, q)
+  const { books, query, matches } = await searchCatalogue(q, new Date(), viewer?.id ?? null)
 
   return (
     <>

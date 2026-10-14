@@ -61,7 +61,7 @@ function reject(field: BookField, message: string): BookValidation {
  * the same order the form reads in. Rules that depend on the rest of the
  * database (a duplicate ISBN, copies still on loan) live next to the write.
  */
-export function validateBook(draft: BookDraft, now: Date = new Date()): BookValidation {
+export function validateBook(draft: BookDraft, now: Date): BookValidation {
   if (draft.title === "") {
     return reject("title", "Skriv inn tittelen på boken.");
   }

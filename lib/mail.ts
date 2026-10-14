@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import { isActiveHold } from "@/lib/availability";
 import { toDate, type DateInput } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
@@ -46,9 +44,14 @@ export function composeHoldReadyMessage(
  *
  * Runs inside a write, after the reservations are settled, so each hold is
  * noticed exactly once however many writes follow. Changes `database` in
- * place and returns what it queued.
+ * place and returns what it queued. `newId` names each message, so the rule
+ * stays deterministic and the caller decides how ids are made.
  */
-export function queueHoldNotices(database: Database, now: DateInput): OutboxMessage[] {
+export function queueHoldNotices(
+  database: Database,
+  now: DateInput,
+  newId: () => string
+): OutboxMessage[] {
   const createdAt = toDate(now).toISOString();
   const queued: OutboxMessage[] = [];
 
@@ -61,7 +64,7 @@ export function queueHoldNotices(database: Database, now: DateInput): OutboxMess
     if (!borrower?.notifyByEmail || !book) continue;
 
     const message: OutboxMessage = {
-      id: `epost-${randomUUID()}`,
+      id: newId(),
       ...composeHoldReadyMessage(reservation, book, borrower),
       createdAt,
       reservationId: reservation.id,

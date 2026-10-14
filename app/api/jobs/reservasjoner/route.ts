@@ -1,7 +1,7 @@
-import { revalidatePath } from "next/cache";
 import type { NextRequest } from "next/server";
 
-import { settleAndNotify } from "@/lib/db";
+import { sendHoldNotices } from "@/lib/loans";
+import { revalidateEverything } from "@/lib/revalidate";
 
 /**
  * For a daily cron. Brings the reservations up to date and sends the «ready»
@@ -21,9 +21,9 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const queued = await settleAndNotify(new Date());
+  const queued = await sendHoldNotices(new Date());
 
-  revalidatePath("/", "layout");
+  revalidateEverything();
 
   return Response.json({ sent: queued.length });
 }

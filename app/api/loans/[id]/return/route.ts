@@ -1,7 +1,9 @@
-import { revalidatePath } from "next/cache";
 import type { NextRequest } from "next/server";
 
-import { registerReturn, type LoanError } from "@/lib/loans";
+import { getCurrentBorrower, isLibrarian } from "@/lib/auth";
+import { registerReturn } from "@/lib/loans";
+import { revalidateLoanViews } from "@/lib/revalidate";
+import type { LoanError } from "@/lib/types";
 
 const status: Record<LoanError, number> = {
   "book-not-found": 404,
@@ -10,11 +12,19 @@ const status: Record<LoanError, number> = {
   "already-returned": 409,
 };
 
-/** Takes a book back into the collection. */
+/** Takes a book back into the collection. Desk work, so librarians only. */
 export async function POST(
   _request: NextRequest,
   context: RouteContext<"/api/loans/[id]/return">
 ) {
+  const actor = await getCurrentBorrower();
+  if (!actor) {
+    return Response.json({ error: "signed-out" }, { status: 401 });
+  }
+  if (!isLibrarian(actor)) {
+    return Response.json({ error: "librarian-only" }, { status: 403 });
+  }
+
   const { id } = await context.params;
   const result = await registerReturn(id);
 
@@ -22,10 +32,7 @@ export async function POST(
     return Response.json({ error: result.error }, { status: status[result.error] });
   }
 
-  revalidatePath("/");
-  revalidatePath("/mine-laan");
-  revalidatePath("/admin");
-  revalidatePath(`/boker/${result.loan.bookId}`);
+  revalidateLoanViews(result.loan.bookId);
 
   return Response.json({ loan: result.loan });
 }

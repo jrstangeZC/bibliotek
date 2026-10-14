@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/card";
 import { signInAction, signOutAction } from "@/lib/actions";
 import { getCurrentBorrower } from "@/lib/auth";
-import { getBorrowers } from "@/lib/db";
+import { listBorrowers } from "@/lib/loans";
 import { describeError } from "@/lib/errors";
 import type { Borrower } from "@/lib/types";
 
@@ -46,7 +46,7 @@ type QuickPick = {
 
 export default async function SignInPage({ searchParams }: PageProps<"/logg-inn">) {
   const [people, current, { feil }] = await Promise.all([
-    getBorrowers(),
+    listBorrowers(),
     getCurrentBorrower(),
     searchParams,
   ]);

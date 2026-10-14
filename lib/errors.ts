@@ -1,6 +1,6 @@
-import type { LoanError } from "@/lib/loans";
 import type { RenewalError } from "@/lib/renewals";
 import type { ReservationError } from "@/lib/reservations";
+import type { LoanError } from "@/lib/types";
 
 /**
  * A failed borrow or return sends the reader back to the page they came from

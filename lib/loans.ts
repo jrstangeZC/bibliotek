@@ -24,9 +24,18 @@ import {
   matchesQuery,
   parseQuery,
   personHaystack,
+  searchBooks,
   type Haystack,
 } from "@/lib/search";
-import type { Book, Borrower, Database, Loan, Reservation } from "@/lib/types";
+import type {
+  Book,
+  Borrower,
+  Database,
+  Loan,
+  LoanError,
+  OutboxMessage,
+  Reservation,
+} from "@/lib/types";
 
 /** How long a loan runs, from the day it is taken out. */
 export const LOAN_PERIOD_DAYS = 28;
@@ -298,7 +307,89 @@ export async function listActiveLoans(today: DateInput = new Date()): Promise<Lo
   return describe(await db.getActiveLoans(), today);
 }
 
+/** Everyone in the register, in the order they were added. */
+export async function listBorrowers(): Promise<Borrower[]> {
+  return db.getBorrowers();
+}
+
+/** A person in the register with how many books they have out, and have ever borrowed. */
+export type RegisterEntry = Borrower & { onLoan: number; totalLoans: number };
+
+/** The register as the desk sees it: everyone, with their loan counts. */
+export async function listRegister(): Promise<RegisterEntry[]> {
+  const [people, loans] = await Promise.all([db.getBorrowers(), db.getLoans()]);
+
+  return people.map((person) => {
+    const mine = loans.filter((loan) => loan.borrowerId === person.id);
+    return { ...person, onLoan: mine.filter(isActive).length, totalLoans: mine.length };
+  });
+}
+
+/** How many loans of `bookId` have ever been registered, returned or not. */
+export async function countLoansForBook(bookId: string): Promise<number> {
+  const loans = await db.getLoans();
+  return loans.filter((loan) => loan.bookId === bookId).length;
+}
+
+export async function findBorrower(id: string): Promise<Borrower | null> {
+  return db.getBorrower(id);
+}
+
+/* ------------------------------------------------- catalogue and register --- */
+
+/*
+ * Writes to the catalogue and the register need no orchestration beyond what
+ * `lib/db.ts` already does inside its queue, so they pass straight through.
+ * They are exported from here so the actions have one module to write through.
+ */
+export {
+  createBook,
+  createBorrower,
+  deleteBook,
+  resetDatabase,
+  updateBook,
+  updateBorrower,
+} from "@/lib/db";
+
+/* ---------------------------------------------------------------- outbox --- */
+
+/** Every message the app has "sent", newest first. */
+export async function listOutbox(): Promise<OutboxMessage[]> {
+  return db.getOutbox();
+}
+
+export async function findOutboxMessage(id: string): Promise<OutboxMessage | null> {
+  return db.getOutboxMessage(id);
+}
+
+/**
+ * Settles the reservations as of `now`, stores the result and sends the
+ * «ready» email for every hold that has not had one. Returns what it queued.
+ */
+export async function sendHoldNotices(now: Date): Promise<OutboxMessage[]> {
+  return db.settleAndNotify(now);
+}
+
 /* ---------------------------------------------------------------- search --- */
+
+export type CatalogueResult = {
+  /** The whole collection, whatever was searched for. */
+  books: BookView[];
+  /** The search as it was read, or empty when there was none. */
+  query: string;
+  /** The titles that match, in the same order as `books`. */
+  matches: BookView[];
+};
+
+/** The collection with a catalogue search applied, as the book lists show it. */
+export async function searchCatalogue(
+  q: string | string[] | undefined,
+  today: DateInput = new Date(),
+  viewerId: string | null = null
+): Promise<CatalogueResult> {
+  const books = await listBooks(today, viewerId);
+  return { books, ...searchBooks(books, q) };
+}
 
 /**
  * How far a search reaches. It follows from who is searching, never from the
@@ -430,12 +521,6 @@ export async function searchLibrary(
 }
 
 /* -------------------------------------------------------------- commands --- */
-
-export type LoanError =
-  | "book-not-found"
-  | "no-copies-available"
-  | "loan-not-found"
-  | "already-returned";
 
 export type LoanResult =
   | { ok: true; loan: Loan }

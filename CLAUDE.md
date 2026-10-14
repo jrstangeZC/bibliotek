@@ -37,11 +37,22 @@ Layers, top to bottom:
 - **`lib/actions.ts`**: every server action. Each one checks who is acting
   itself (`requireLibrarianForAction` or `getCurrentBorrower`), because an
   action is a public endpoint whether or not a page links to it. Whose loan or
-  reservation it is comes from the session, never from a form field. After a
-  write, call the matching `revalidateLoanViews` / `revalidateCatalogue`. They
-  include the layout, because the banner shows held copies.
+  reservation it is comes from the session, never from a form field. Three
+  actions are deliberate exceptions, since they act on the session itself and
+  touch no data: `signInAction`, `signOutAction` and `setThemeAction`. After a
+  write, call the matching helper from `lib/revalidate.ts`
+  (`revalidateLoanViews`, `revalidateCatalogue`, `revalidateRegister`,
+  `revalidateEverything`), never `revalidatePath` directly.
+  `revalidateLoanViews` includes the layout, because the banner shows held
+  copies. The JSON route handlers that write follow the same
+  two rules: check who is acting, and revalidate through `lib/revalidate.ts`.
 - **`lib/loans.ts`**: orchestration and view models (`BookView`, `LoanView`,
-  `ReservationView`). Pages read through these, not through `lib/db.ts` directly.
+  `ReservationView`). Pages read through these, and actions and route handlers
+  write through them, never through `lib/db.ts` directly. Catalogue and register
+  writes need no orchestration, so `loans` re-exports them from `db` unchanged.
+- **`lib/auth.ts`**: the session seam, beside `loans` rather than under it. It
+  reads the register from `lib/db.ts` to resolve the signed-in person, and
+  `loans`, `actions` and pages may all import it.
 - **`lib/db.ts`**: the only module that touches disk. `data/seed.json` is
   committed and never written; `data/db.json` is the git-ignored working copy.
   Every read and write runs through one promise queue (`enqueue`). A write that
@@ -49,7 +60,10 @@ Layers, top to bottom:
   inside the same queued operation.
 - **Pure rule modules**: `fees`, `availability`, `renewals`, `reservations`,
   `dates`, `mail`, `search` (the one text matcher behind every search field),
-  plus form parsing and validation in `books` and `borrowers`.
+  plus form parsing and validation in `books` and `borrowers`. Alongside them
+  sit pure helpers (`types`, `errors`, `forms`, `format`, `theme`, `utils`) and
+  one config module, `demo`, which reads the environment once at load. It is
+  the only module in `lib/` that reads `process.env`.
   They do no I/O and take `now`/`today` as a parameter rather than reading the
   clock; tests pass fixed dates.
 

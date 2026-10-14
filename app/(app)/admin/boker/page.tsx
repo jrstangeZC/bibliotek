@@ -54,8 +54,7 @@ import {
 import { isLibrarian, requireBorrower } from "@/lib/auth";
 import { byTitle } from "@/lib/books";
 import { describeError } from "@/lib/errors";
-import { listBooks, type BookView } from "@/lib/loans";
-import { searchBooks } from "@/lib/search";
+import { searchCatalogue, type BookView } from "@/lib/loans";
 
 export const dynamic = "force-dynamic";
 
@@ -148,12 +147,11 @@ export default async function AdminBooksPage({
     );
   }
 
-  const [catalogue, { feil, ny, lagret, slettet, q }] = await Promise.all([
-    listBooks(),
-    searchParams,
-  ]);
-  const books = catalogue.toSorted(byTitle);
-  const { query, matches } = searchBooks(books, q);
+  const { feil, ny, lagret, slettet, q } = await searchParams;
+  const search = await searchCatalogue(q);
+  const books = search.books.toSorted(byTitle);
+  const { query } = search;
+  const matches = search.matches.toSorted(byTitle);
   const error = describeError(feil);
   const created = typeof ny === "string" ? books.find((book) => book.id === ny) : null;
   const saved = typeof lagret === "string" ? books.find((book) => book.id === lagret) : null;

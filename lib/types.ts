@@ -40,6 +40,13 @@ export type Loan = {
   renewedAt: string | null;
 };
 
+/** Why a borrow or a return was refused. */
+export type LoanError =
+  | "book-not-found"
+  | "no-copies-available"
+  | "loan-not-found"
+  | "already-returned";
+
 /** How a reservation ended: the book was borrowed, the place was given up, or the hold ran out. */
 export type ReservationOutcome = "collected" | "cancelled" | "expired";
 

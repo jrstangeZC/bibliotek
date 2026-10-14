@@ -1,8 +1,9 @@
-import { revalidatePath } from "next/cache";
 import type { NextRequest } from "next/server";
 
 import { getCurrentBorrower } from "@/lib/auth";
-import { borrowBook, type LoanError } from "@/lib/loans";
+import { borrowBook } from "@/lib/loans";
+import { revalidateLoanViews } from "@/lib/revalidate";
+import type { LoanError } from "@/lib/types";
 
 const status: Record<LoanError, number> = {
   "book-not-found": 404,
@@ -36,10 +37,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: result.error }, { status: status[result.error] });
   }
 
-  revalidatePath("/");
-  revalidatePath("/mine-laan");
-  revalidatePath("/admin");
-  revalidatePath(`/boker/${bookId}`);
+  revalidateLoanViews(bookId);
 
   return Response.json({ loan: result.loan }, { status: 201 });
 }

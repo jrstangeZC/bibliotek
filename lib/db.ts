@@ -80,13 +80,18 @@ async function write(database: Database): Promise<void> {
   await writeFile(DB_FILE, `${JSON.stringify(database, null, 2)}\n`, "utf8");
 }
 
+/** Ids for outbox messages, passed to `queueHoldNotices`. */
+function newMessageId(): string {
+  return `epost-${randomUUID()}`;
+}
+
 /**
  * Stores a write that may have set copies aside. The «ready» email for any new
  * hold goes out with it (see `queueHoldNotices`) — here, and not on a read, so
  * each hold is noticed once and a page view never sends anything.
  */
 async function save(database: Database, now: Date | string): Promise<void> {
-  queueHoldNotices(database, now);
+  queueHoldNotices(database, now, newMessageId);
   await write(database);
 }
 
@@ -386,17 +391,6 @@ export async function deleteBook(
 }
 
 /**
- * Whether the demo data may be reset from the interface.
- *
- * On in development. Off in production unless deliberately switched on with
- * `ALLOW_DEMO_RESET=true` — deployed, this button lets any visitor wipe the
- * demo for everyone else, so it is not something to ship by accident.
- */
-export const DEMO_RESET_ENABLED =
-  process.env.NODE_ENV !== "production" ||
-  process.env.ALLOW_DEMO_RESET === "true";
-
-/**
  * Puts the working copy back to `data/seed.json`.
  *
  * `scripts/reset-data.mjs` deletes the file and lets the next read rebuild it.
@@ -572,7 +566,7 @@ export async function markHoldHandled(id: string, now: Date): Promise<Reservatio
 export async function settleAndNotify(now: Date): Promise<OutboxMessage[]> {
   return enqueue(async () => {
     const database = await load(now);
-    const queued = queueHoldNotices(database, now);
+    const queued = queueHoldNotices(database, now, newMessageId);
     await write(database);
     return queued;
   });

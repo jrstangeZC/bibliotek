@@ -15,7 +15,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
-import { DEMO_RESET_ENABLED } from "@/lib/db";
+import { DEMO_RESET_ENABLED } from "@/lib/demo";
 
 export const dynamic = "force-dynamic";
 

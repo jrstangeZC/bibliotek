@@ -19,8 +19,7 @@ import {
 } from "@/components/ui/card";
 import { deleteBookAction } from "@/lib/actions";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
-import { getLoans } from "@/lib/db";
-import { findBook } from "@/lib/loans";
+import { countLoansForBook, findBook } from "@/lib/loans";
 
 export const dynamic = "force-dynamic";
 
@@ -43,10 +42,10 @@ export default async function DeleteBookPage({
   }
 
   const { id } = await params;
-  const [book, loans] = await Promise.all([findBook(id), getLoans()]);
+  const [book, totalLoans] = await Promise.all([findBook(id), countLoansForBook(id)]);
   if (!book) notFound();
 
-  const history = loans.filter((loan) => loan.bookId === id).length - book.onLoan;
+  const history = totalLoans - book.onLoan;
   const blocked = book.onLoan > 0;
 
   return (

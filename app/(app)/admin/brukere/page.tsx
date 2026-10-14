@@ -38,11 +38,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { isActive } from "@/lib/availability";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
 import { borrowerEditHref } from "@/lib/borrowers";
-import { getBorrowers, getLoans } from "@/lib/db";
 import { describeError } from "@/lib/errors";
+import { listRegister } from "@/lib/loans";
 
 export const dynamic = "force-dynamic";
 
@@ -64,9 +63,8 @@ export default async function BorrowersPage({
     );
   }
 
-  const [people, loans, { ny, feil }] = await Promise.all([
-    getBorrowers(),
-    getLoans(),
+  const [people, { ny, feil }] = await Promise.all([
+    listRegister(),
     searchParams,
   ]);
   const enrolled = typeof ny === "string" ? people.find((p) => p.id === ny) : null;
@@ -129,9 +127,6 @@ export default async function BorrowersPage({
             </TableHeader>
             <TableBody>
               {people.map((person) => {
-                const mine = loans.filter((loan) => loan.borrowerId === person.id);
-                const out = mine.filter(isActive).length;
-
                 return (
                   <TableRow key={person.id}>
                     <TableCell
@@ -149,10 +144,10 @@ export default async function BorrowersPage({
                       <RoleBadge role={person.role} />
                     </TableCell>
                     <TableCell className="py-3 text-right font-medium tabular-nums">
-                      {out}
+                      {person.onLoan}
                     </TableCell>
                     <TableCell className="py-3 text-right tabular-nums text-muted-foreground">
-                      {mine.length}
+                      {person.totalLoans}
                     </TableCell>
                     <TableCell className="py-3 pr-(--card-spacing) text-right">
                       <DropdownMenu>

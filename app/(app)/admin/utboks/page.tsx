@@ -38,7 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { isLibrarian, requireBorrower } from "@/lib/auth";
-import { getOutbox } from "@/lib/db";
+import { listOutbox } from "@/lib/loans";
 import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +59,7 @@ export default async function OutboxPage() {
     );
   }
 
-  const messages = await getOutbox();
+  const messages = await listOutbox();
 
   return (
     <>

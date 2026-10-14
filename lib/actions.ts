@@ -1,6 +1,5 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
@@ -18,16 +17,7 @@ import {
   readBorrowerForm,
   validateBorrower,
 } from "@/lib/borrowers"
-import {
-  createBook,
-  createBorrower,
-  DEMO_RESET_ENABLED,
-  deleteBook,
-  getBorrower,
-  resetDatabase,
-  updateBook,
-  updateBorrower,
-} from "@/lib/db"
+import { DEMO_RESET_ENABLED } from "@/lib/demo"
 import {
   bookErrorSlug,
   errorSlug,
@@ -39,22 +29,33 @@ import { parseTheme, THEME_COOKIE, THEME_COOKIE_MAX_AGE } from "@/lib/theme"
 import {
   borrowBook,
   cancelReservation,
+  createBook,
+  createBorrower,
+  deleteBook,
+  findBorrower,
   markHoldHandled,
   registerReturn,
   renewLoan,
   reserveBook,
+  resetDatabase,
+  updateBook,
+  updateBorrower,
 } from "@/lib/loans"
+import {
+  revalidateCatalogue,
+  revalidateEverything,
+  revalidateLoanViews,
+  revalidateRegister,
+} from "@/lib/revalidate"
 
 /**
- * Every screen that shows a loan, a reservation or an availability count. The
- * layout is in it too: its banner tells a borrower when a copy is held for them.
+ * For desk work: returns, the catalogue, the register and the reservations
+ * queue. Checked in every action, not just on the page — an action is a public
+ * endpoint whether or not a page links to it.
  */
-function revalidateLoanViews(bookId?: string) {
-  revalidatePath("/", "layout")
-  revalidatePath("/mine-laan")
-  revalidatePath("/admin")
-  revalidatePath("/admin/reservasjoner")
-  if (bookId) revalidatePath(`/boker/${bookId}`)
+async function requireLibrarianForAction() {
+  const actor = await getCurrentBorrower()
+  if (!actor || !isLibrarian(actor)) redirect("/logg-inn")
 }
 
 /** Lends the book on the detail page to whoever is browsing. */
@@ -77,8 +78,7 @@ export async function borrowBookAction(formData: FormData) {
 
 /** Takes a book back in from the administration screen. */
 export async function returnLoanAction(formData: FormData) {
-  const actor = await getCurrentBorrower()
-  if (!actor || !isLibrarian(actor)) redirect("/logg-inn")
+  await requireLibrarianForAction()
 
   const loanId = String(formData.get("loanId") ?? "")
   const result = await registerReturn(loanId)
@@ -188,30 +188,11 @@ export async function markHoldHandledAction(formData: FormData) {
 
   if (!reservation) redirect("/admin/reservasjoner?feil=hold-handtert")
 
-  revalidatePath("/admin/reservasjoner")
+  revalidateLoanViews(reservation.bookId)
   redirect("/admin/reservasjoner?handtert=1")
 }
 
 /* -------------------------------------------------------------- catalogue --- */
-
-/** Every screen that lists a title or links to its page. */
-function revalidateCatalogue() {
-  revalidatePath("/")
-  revalidatePath("/admin")
-  revalidatePath("/admin/boker")
-  revalidatePath("/boker/[id]", "page")
-  revalidatePath("/sok")
-}
-
-/**
- * The catalogue is desk work like the rest of the administration. Checked in
- * every action, not just on the page — an action is a public endpoint whether
- * or not a page links to it.
- */
-async function requireLibrarianForAction() {
-  const actor = await getCurrentBorrower()
-  if (!actor || !isLibrarian(actor)) redirect("/logg-inn")
-}
 
 /** Adds a title to the catalogue. */
 export async function createBookAction(
@@ -221,7 +202,7 @@ export async function createBookAction(
   await requireLibrarianForAction()
 
   const values = readBookForm(formData)
-  const checked = validateBook(values)
+  const checked = validateBook(values, new Date())
   if (!checked.ok) return { values, error: checked.error }
 
   const result = await createBook(checked.book)
@@ -248,7 +229,7 @@ export async function updateBookAction(
 
   const id = String(formData.get("id") ?? "")
   const values = readBookForm(formData)
-  const checked = validateBook(values)
+  const checked = validateBook(values, new Date())
   if (!checked.ok) return { values, error: checked.error }
 
   const result = await updateBook(id, checked.book)
@@ -294,8 +275,9 @@ export async function deleteBookAction(formData: FormData) {
     redirect(`/admin/boker?feil=${bookErrorSlug(result.error)}`)
   }
 
+  // Deleting a title also closes its reservations, so loan views change too.
   revalidateCatalogue()
-  revalidatePath("/mine-laan")
+  revalidateLoanViews()
   redirect("/admin/boker?slettet=1")
 }
 
@@ -308,19 +290,13 @@ export async function deleteBookAction(formData: FormData) {
  * {@link DEMO_RESET_ENABLED} on top of that.
  */
 export async function resetDemoDataAction() {
+  await requireLibrarianForAction()
   if (!DEMO_RESET_ENABLED) redirect("/admin/innstillinger")
-
-  const actor = await getCurrentBorrower()
-  if (!actor || !isLibrarian(actor)) redirect("/logg-inn")
 
   await resetDatabase()
 
-  revalidateLoanViews()
-  // Every title at once — a reset changes availability across the catalogue,
-  // not just on the one book a borrow would have touched.
-  revalidatePath("/boker/[id]", "page")
-  revalidatePath("/admin/brukere")
-  revalidatePath("/logg-inn")
+  // A reset touches the catalogue, every loan and the register at once.
+  revalidateEverything()
   redirect("/admin/innstillinger?tilbakestilt=1")
 }
 
@@ -332,7 +308,7 @@ export async function resetDemoDataAction() {
  */
 export async function signInAction(formData: FormData) {
   const id = String(formData.get("borrowerId") ?? "")
-  const borrower = await getBorrower(id)
+  const borrower = await findBorrower(id)
   if (!borrower) redirect("/logg-inn?feil=ukjent-laaner")
 
   ;(await cookies()).set(BORROWER_COOKIE, borrower.id, {
@@ -377,7 +353,7 @@ export async function setThemeAction(formData: FormData) {
     }
   )
 
-  revalidatePath("/", "layout")
+  revalidateEverything()
 }
 
 /**
@@ -400,9 +376,7 @@ export async function registerBorrowerAction(
     return { values, error: { field: "email", message: EMAIL_TAKEN_MESSAGE } }
   }
 
-  revalidatePath("/admin/brukere")
-  revalidatePath("/logg-inn")
-  revalidatePath("/sok")
+  revalidateRegister()
   redirect(`/admin/brukere?ny=${encodeURIComponent(borrower.id)}`)
 }
 
@@ -441,7 +415,7 @@ export async function updateBorrowerAction(
   }
 
   // The name shows in the header and on every loan; refresh the lot.
-  revalidatePath("/", "layout")
+  revalidateEverything()
   return { saved: true }
 }
 
@@ -471,6 +445,6 @@ export async function updateOwnProfileAction(
     redirect("/logg-inn?feil=ukjent-laaner")
   }
 
-  revalidatePath("/", "layout")
+  revalidateEverything()
   return { saved: true }
 }
