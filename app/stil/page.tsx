@@ -20,6 +20,14 @@ import {
 import { DetailRow } from "@/components/detail-row"
 import { ThemeSwitch } from "@/components/theme-switch"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Autocomplete,
+  AutocompleteInput,
+  AutocompleteItem,
+  AutocompleteList,
+  AutocompleteSeparator,
+  AutocompleteStatus,
+} from "@/components/ui/autocomplete"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
@@ -169,6 +177,63 @@ function Section({
       </div>
       {children}
     </section>
+  )
+}
+
+/**
+ * The header field's list, held open in place with sample books: the same
+ * primitives as `HeaderSearch`, rendered `inline` instead of in a popup, so
+ * nothing floats over the page and nothing is fetched. The rows go nowhere.
+ */
+function SuggestionsExample({
+  id,
+  query,
+  books: matches,
+}: {
+  id: string
+  query: string
+  books: { title: string; author: string; year: number }[]
+}) {
+  const sorted = matches.toSorted((a, b) =>
+    a.title.localeCompare(b.title, "nb")
+  )
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="sr-only">
+        Søk i biblioteket
+      </label>
+      <Autocomplete inline open readOnly value={query}>
+        <AutocompleteInput id={id} type="search" placeholder="Søk …">
+          <InputGroupAddon>
+            <HugeiconsIcon icon={Search01Icon} strokeWidth={2} />
+          </InputGroupAddon>
+        </AutocompleteInput>
+        {/* The popup's surface, from AutocompleteContent. */}
+        <div className="rounded-2xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/5 dark:ring-foreground/10">
+          <AutocompleteStatus>
+            {sorted.length === 0 ? `Ingen bøker passer «${query}»` : null}
+          </AutocompleteStatus>
+          <AutocompleteList>
+            {sorted.map((book) => (
+              <AutocompleteItem key={book.title} value={book.title}>
+                <span className="flex min-w-0 flex-col leading-snug">
+                  <span className="truncate font-medium">{book.title}</span>
+                  <span className="truncate text-muted-foreground">
+                    {book.author} · {book.year}
+                  </span>
+                </span>
+              </AutocompleteItem>
+            ))}
+            {sorted.length > 0 ? <AutocompleteSeparator /> : null}
+            <AutocompleteItem value={query}>
+              <HugeiconsIcon icon={Search01Icon} strokeWidth={2} />
+              <span className="truncate">Vis alle treff for «{query}»</span>
+            </AutocompleteItem>
+          </AutocompleteList>
+        </div>
+      </Autocomplete>
+    </div>
   )
 }
 
@@ -571,6 +636,24 @@ export default async function StylePage() {
                   Søket treffer på deler av ord. 1 248 titler er indeksert.
                 </FieldDescription>
               </Field>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Forslag mens du skriver</CardTitle>
+              <CardDescription>
+                Søkefeltet i toppmenyen viser bøker som passer fra to tegn, og
+                den siste raden går alltid til hele søket.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid items-start gap-6 sm:grid-cols-2">
+              <SuggestionsExample
+                id="forslag-treff"
+                query="el"
+                books={books.filter((book) => book.author === "Erlend Loe")}
+              />
+              <SuggestionsExample id="forslag-ingen" query="xyz" books={[]} />
             </CardContent>
           </Card>
         </Section>

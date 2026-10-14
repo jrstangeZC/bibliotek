@@ -3,8 +3,10 @@
 Ett søkefelt i headeren og en søkeside, `/sok?q=…`, med treff på tvers av bøker,
 personer, lån og reservasjoner. Hva du får treff i, avhenger av hvem du er.
 
-Status: bygget 6. oktober 2026. Koden ligger i `lib/search.ts`,
-`searchLibrary` i `lib/loans.ts`, `components/site-search.tsx` og
+Status: bygget 6. oktober 2026. Initialer og forslag mens du skriver i
+headerfeltet kom til 14. oktober 2026. Koden ligger i `lib/search.ts`,
+`searchLibrary` i `lib/loans.ts`, `components/site-search.tsx`,
+`components/ui/autocomplete.tsx`, `app/api/books/route.ts` og
 `app/(app)/sok/page.tsx`. Avsnittet «Utgangspunktet i dag» beskriver
 tilstanden før søket ble bygget. Les `README.md` (forretningsreglene) og
 `docs/design/README.md` (designspråket) før du endrer søket, som `CLAUDE.md`
@@ -21,12 +23,12 @@ Appen har et **katalogsøk**, men ingenting som søker på tvers:
 
 Matcheren har fire svakheter. Alle er kontrollert mot seed-dataene:
 
-| Søk | Burde finne | Dagens resultat |
-| --- | --- | --- |
-| `saether` | Ingrid Sæther | Ingenting. NFD gjør å til a, men ikke æ og ø, så de tre bokstavene behandles ulikt |
-| `978 0 618 64015 7` | «The Lord of the Rings» | Ingenting. Mellomrom deler ISBN-en i ord, og `0` og `7` er for korte til å treffe ISBN-en |
-| `jk rowling` | «Harry Potter …» | Ingenting. `J.K.` blir ikke til `jk` |
-| `0-618-64015-0` (ISBN-10) | Samme bok, lagret som ISBN-13 | Ingenting |
+| Søk                       | Burde finne                   | Dagens resultat                                                                           |
+| ------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------- |
+| `saether`                 | Ingrid Sæther                 | Ingenting. NFD gjør å til a, men ikke æ og ø, så de tre bokstavene behandles ulikt        |
+| `978 0 618 64015 7`       | «The Lord of the Rings»       | Ingenting. Mellomrom deler ISBN-en i ord, og `0` og `7` er for korte til å treffe ISBN-en |
+| `jk rowling`              | «Harry Potter …»              | Ingenting. `J.K.` blir ikke til `jk`                                                      |
+| `0-618-64015-0` (ISBN-10) | Samme bok, lagret som ISBN-13 | Ingenting                                                                                 |
 
 Det globale søket og katalogsøket skal bruke **samme matcher**, så alle fire
 rettes for begge. To søkefelt som er uenige om samme bok, er verre enn ett som
@@ -34,12 +36,12 @@ tar feil.
 
 ## Hva som er søkbart
 
-| Gruppe | Hva som er med | Feltene søket leser | Hvem som får treff her |
-| --- | --- | --- | --- |
-| Bøker | Alle titler i katalogen | Tittel, forfatter, år, ISBN | Alle, også uten innlogging |
-| Brukere | Alle i registeret, begge roller | Navn, e-post | Bare bibliotekarer |
-| Lån | Aktive lån: ute nå, forfalte medregnet | Bokens felter, og for bibliotekaren lånerens navn og e-post | Bibliotekaren ser alle. En låner ser bare sine egne |
-| Reservasjoner | Åpne reservasjoner: i kø eller klar til henting | Som for lån | Som for lån |
+| Gruppe        | Hva som er med                                  | Feltene søket leser                                         | Hvem som får treff her                              |
+| ------------- | ----------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------- |
+| Bøker         | Alle titler i katalogen                         | Tittel, forfatter, år, ISBN                                 | Alle, også uten innlogging                          |
+| Brukere       | Alle i registeret, begge roller                 | Navn, e-post                                                | Bare bibliotekarer                                  |
+| Lån           | Aktive lån: ute nå, forfalte medregnet          | Bokens felter, og for bibliotekaren lånerens navn og e-post | Bibliotekaren ser alle. En låner ser bare sine egne |
+| Reservasjoner | Åpne reservasjoner: i kø eller klar til henting | Som for lån                                                 | Som for lån                                         |
 
 Et lån eller en reservasjon har ingen tekst av sitt eget. Posten passer når
 boken passer, eller, for bibliotekaren, når personen passer. Alle ordene i et
@@ -60,11 +62,11 @@ Dette er ikke søkbart:
 
 Hvem du er, bestemmer **omfanget** av søket:
 
-| Omfang | Hvem | Grupper |
-| --- | --- | --- |
-| `public` | Ikke innlogget (cookien er `none`) | Bøker |
-| `own` | Låner | Bøker, dine lån, dine reservasjoner |
-| `desk` | Bibliotekar | Bøker, brukere, alle lån, alle reservasjoner |
+| Omfang   | Hvem                               | Grupper                                      |
+| -------- | ---------------------------------- | -------------------------------------------- |
+| `public` | Ikke innlogget (cookien er `none`) | Bøker                                        |
+| `own`    | Låner                              | Bøker, dine lån, dine reservasjoner          |
+| `desk`   | Bibliotekar                        | Bøker, brukere, alle lån, alle reservasjoner |
 
 Reglene:
 
@@ -117,6 +119,39 @@ Et ord treffer hvor som helst i et felt, også midt i et ord: `ling` finner
 «Rowling». Det er slik katalogsøket virker i dag, og med en samling på denne
 størrelsen hjelper det mer enn det støyer.
 
+### Initialer
+
+Et ord treffer også starten av initialene i forfatternavnet. Initialene er
+første bokstav i hver del av navnet, og punktum og bindestrek deler navnet
+akkurat som mellomrom (`initials()` i `lib/search.ts`):
+
+| Forfatter                | Initialer | Treffer                               |
+| ------------------------ | --------- | ------------------------------------- |
+| J.K. Rowling             | `jkr`     | `jkr`, `J.K.R.`, `jk`                 |
+| J.R.R. Tolkien           | `jrrt`    | `jrrt`, `jrr`, `jr`                   |
+| George Orwell            | `go`      | `go`                                  |
+| Harper Lee               | `hl`      | `hl`                                  |
+| Karl Ove Knausgård       | `kok`     | `kok`, `ko` (mellomnavnet teller med) |
+| Antoine de Saint-Exupéry | `adse`    | `adse`, `ads`                         |
+
+Valgene:
+
+- **Fra første bokstav.** Initialene leses fra starten, slik de skrives. Da
+  treffer `jr` og `jrr` mens noen skriver `jrrt` ett tegn om gangen, og `jkx`
+  treffer ingenting. Ord som hopper over et navn (`kk` for Knausgård, `jt` for
+  Tolkien), treffer ikke. Det ville gitt mange tilfeldige treff på to bokstaver.
+- **Initialer med mellomrom** trenger ingen egen regel: `g orwell` og
+  `jk rowling` deles i ord som hvert treffer forfatterfeltet som vanlig tekst.
+- **Bare forfattere.** Navnefelt som skal leses som initialer, ligger i
+  `names` i `Haystack`. Bøker har forfatteren der (`bookHaystack`). Personer i
+  registeret søkes fortsatt bare på navn og e-post som tekst
+  (`personHaystack`), fordi regelen er laget for forfattere, som ofte gir ut
+  bøker under initialene sine. Et lån eller en reservasjon arver bokens `names`,
+  så `jrrt` finner også lånene av «The Lord of the Rings».
+
+Regelen ligger i den felles matcheren, så katalogsøket, `/sok` og forslagene i
+headerfeltet treffer de samme bøkene.
+
 ### Flere ord
 
 Søket deles på mellomrom. **Alle ordene må passe på samme post**, i hvilket som
@@ -163,9 +198,10 @@ stedet finnes ikke. Vurder det på nytt hvis en gruppe ofte passerer 50 rader.
   det.
 - Utheving av treffet. `fold` endrer lengden på teksten, så posisjonene stemmer
   ikke med originalen.
-- Forslag mens du skriver. Søket er et GET-skjema med server-rendrede treff,
-  slik katalogsøket er, og virker uten JavaScript.
-- Hurtigtast og et JSON-API. Ingen trenger dem ennå.
+- Forslag mens du skriver på `/sok` og i katalogsøket. Bare headerfeltet har
+  forslag (se «Forslag i headerfeltet»). Feltet på `/sok` brukes til å justere
+  et søk som allerede vises, og katalogsøket filtrerer listen under seg.
+- Hurtigtast. Ingen trenger den ennå.
 
 ## Tilstander
 
@@ -239,6 +275,92 @@ I `components/site-header.tsx`:
   `useSearchParams`.
 - Feltet vises for alle: uten innlogging, for lånere og bibliotekarer, og på
   `/logg-inn`. Ingen menypunkter markeres som aktive på `/sok`.
+- **Forslag**: feltet viser en nedtrekksliste med bøker mens du skriver. Se
+  neste avsnitt.
+
+### Forslag i headerfeltet
+
+`HeaderSearch` i `components/site-search.tsx`, bygget på `Autocomplete` i
+`components/ui/autocomplete.tsx`.
+
+**Hva listen viser**
+
+- **Bare bøker, og samme liste for alle.** Personer, lån og reservasjoner er
+  aldri med, så ingenting kan lekke mellom omfangene. Listen er et snarvei til
+  en bok. Alt annet står på `/sok`.
+- Opptil **6 bøker** i rekkefølgen til bokgruppen på `/sok` (`byTitle`).
+  Hver rad har tittelen i `font-medium` over «forfatter · år» i
+  `text-muted-foreground`, og lenker til `/boker/[id]`.
+- **Siste rad er alltid «Vis alle treff for «q»»** og går til `/sok?q=…`,
+  fordi `/sok` også søker i personer, lån og reservasjoner. En skillelinje står
+  mellom bøkene og denne raden.
+- **Ingen bøker**: én dempet linje, «Ingen bøker passer «q»», og fortsatt
+  «Vis alle treff». Linjen er en `AutocompleteStatus` og leses opp av
+  skjermlesere.
+- **Feil**: kan ikke forslagene hentes, står det «Forslagene kunne ikke hentes.
+  Trykk Enter for å søke likevel.», og «Vis alle treff» er fortsatt der. Skjemaet
+  virker uansett.
+
+**Når listen åpnes og oppdateres**
+
+- Fra og med **to tegn** (trimmet). Ett tegn treffer nesten alt.
+- Spørringen sendes når skrivingen har stått stille i **200 ms**. Et nytt søk
+  avbryter det forrige (`AbortController` i effekten), så et svar på et eldre
+  søk kan aldri overskrive svaret på et nyere.
+- Listen vises først når det første svaret er kommet, og beholder forrige svar
+  mens neste er på vei, så den ikke blinker. Går teksten under to tegn,
+  glemmes svaret, så listen ikke åpner seg igjen på et gammelt svar.
+- Teksten i «Vis alle treff» er det som står i feltet nå. «Ingen bøker passer»
+  viser søket svaret gjelder.
+
+**Tastatur, mus og berøring**
+
+- ↓/↑ flytter markeringen. Enter på en markert rad åpner den (Base UI klikker
+  lenken). Enter uten markering sender skjemaet til `/sok`, som før. Ingen rad
+  markeres av seg selv (`autoHighlight` er av), ellers ville Enter aldri nådd
+  `/sok`.
+- Escape lukker listen og beholder teksten. Med listen allerede lukket tømmer
+  Escape feltet, slik Base UI og nettleserens `type="search"` gjør.
+- Listen lukkes når feltet mister fokus. Base UI regner listen som lukket
+  mens den venter på første svar og melder da ikke fra om blur, så feltet
+  lukker den selv i `onBlur`.
+- Radene er lenker, så klikk, trykk og Enter går samme vei. Etter et valg
+  tømmes feltet, fordi headeren blir stående på neste side. Et klikk med
+  Cmd/Ctrl/Shift lar feltet være som det var. Radene forhåndslastes ikke
+  (`prefetch={false}`), fordi de byttes ut ved hver pause i skrivingen.
+
+**Tilgjengelighet og uten JavaScript**
+
+- ARIA-mønsteret for combobox kommer fra Base UI: `role="combobox"`,
+  `aria-expanded`, `aria-controls` og `aria-activedescendant` på feltet,
+  `listbox` og `option` i listen. Skillelinjen er `aria-hidden`, fordi en
+  `listbox` ikke kan ha `separator` som barn.
+- Uten JavaScript er feltet fortsatt et vanlig GET-skjema til `/sok`. Base UI
+  gir det synlige feltet `name="q"` (`name` på roten).
+- **Skjult sendeknapp.** Base UI legger et ekstra, visuelt skjult tekstfelt
+  (uten `name`) i skjemaet, også i server-HTML-en. Et skjema med to tekstfelt
+  og ingen sendeknapp sender ikke på Enter (implisitt innsending i HTML). Derfor
+  har skjemaet en `sr-only`-knapp med `tabIndex={-1}` og `aria-hidden`. Uten
+  den virker verken Enter uten markering eller skjemaet uten JavaScript. Feltet
+  har fortsatt ingen synlig knapp.
+
+**Hvorfor Autocomplete og ikke shadcn-combobox**
+
+`npx shadcn@latest add combobox` gir Base UI sin Combobox, som velger en
+verdi. Den legger det valgte tilbake i feltet og har haker og en
+nedtrekksknapp. Base UI anbefaler Autocomplete for fritekst. Registeret har ingen
+autocomplete for `base-maia`, så `components/ui/autocomplete.tsx` er
+registerets combobox-klasser lagt på Base UI sin Autocomplete.
+
+**Hvor forslagene kommer fra**
+
+`GET /api/books?q=` (`app/api/books/route.ts`) kaller `searchLibrary(q, null)`,
+altså søket slik en utlogget besøkende ser det. Uten `q` er svaret som før:
+alle titler. Bokgruppen er lik for alle omfang, og med `null` leser ruten
+aldri økten, så ingen kan få en annen liste enn andre. Svaret er
+`{ query, books }`, der `books` er `BookView` i `byTitle`-rekkefølge. Klienten
+viser de seks første. Et søk uten noe å søke på (`---`) gir ingen bøker, som
+på `/sok`.
 
 ### Søkesiden, `app/(app)/sok/page.tsx`
 
@@ -268,14 +390,14 @@ Rekkefølgen på siden:
 - `IDENTITY_CELL` på identitetscellen og `SECONDARY_CELL` på lånercellen.
   Kolonneoverskriftene er `ColumnHead`.
 
-| Gruppe | Kolonner | Merknad |
-| --- | --- | --- |
-| Bøker | Tittel · Eksemplarer · Status | Som raden på `/`, uten Handling: `RecordCell` med `Book02Icon`/`BookOpen01Icon`, linje 2 er «forfatter · år». «x av y» står høyrejustert, og status er `BookStatusBadge` |
-| Brukere (`desk`) | Navn · Rolle · Ute nå | `RecordCell` med `UserIcon`, `href={borrowerEditHref(id)}` og e-posten på linje 2. `RoleBadge`. «Ute nå» er høyrejustert med `tabular-nums` |
-| Lån (`desk`) | Tittel · Låner · Frist · Status | Som `/admin`: `BookRecordCell`, låneren som `RecordCell` uten ikon (navn → `borrowerEditHref`, e-post under), `LoanDueCell`, `LoanStatusCell` |
-| Dine lån (`own`) | Tittel · Frist · Status | Som `/mine-laan`, uten Handling |
-| Reservasjoner (`desk`) | Tittel · Låner · Reservert · Status | `BookRecordCell` med `Bookmark01Icon`, låneren som over, `formatDate(reservedAt)`, `ReservationStatusCell` |
-| Dine reservasjoner (`own`) | Tittel · Status | Som `/mine-laan`, uten Handling |
+| Gruppe                     | Kolonner                            | Merknad                                                                                                                                                                  |
+| -------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Bøker                      | Tittel · Eksemplarer · Status       | Som raden på `/`, uten Handling: `RecordCell` med `Book02Icon`/`BookOpen01Icon`, linje 2 er «forfatter · år». «x av y» står høyrejustert, og status er `BookStatusBadge` |
+| Brukere (`desk`)           | Navn · Rolle · Ute nå               | `RecordCell` med `UserIcon`, `href={borrowerEditHref(id)}` og e-posten på linje 2. `RoleBadge`. «Ute nå» er høyrejustert med `tabular-nums`                              |
+| Lån (`desk`)               | Tittel · Låner · Frist · Status     | Som `/admin`: `BookRecordCell`, låneren som `RecordCell` uten ikon (navn → `borrowerEditHref`, e-post under), `LoanDueCell`, `LoanStatusCell`                            |
+| Dine lån (`own`)           | Tittel · Frist · Status             | Som `/mine-laan`, uten Handling                                                                                                                                          |
+| Reservasjoner (`desk`)     | Tittel · Låner · Reservert · Status | `BookRecordCell` med `Bookmark01Icon`, låneren som over, `formatDate(reservedAt)`, `ReservationStatusCell`                                                               |
+| Dine reservasjoner (`own`) | Tittel · Status                     | Som `/mine-laan`, uten Handling                                                                                                                                          |
 
 En slettet bok eller låner vises som «Ukjent tittel» eller «Ukjent låner».
 Posten kan da bare treffe via den siden som fortsatt finnes.
@@ -307,14 +429,14 @@ Hva søket så i, brukt i tom- og null treff-tilstanden:
 
 Kortbeskrivelsene:
 
-| Kort | `CardDescription` |
-| --- | --- |
-| Bøker | Åpne en tittel for å låne den, eller reserver den hvis alle eksemplarene er ute. |
-| Brukere | Åpne en person for å se lånene og endre opplysningene. |
-| Lån | Bøker som er ute nå. Returen registreres under Administrasjon. |
-| Dine lån | Bøker du har ute nå. Du forlenger dem under Mine lån. |
-| Reservasjoner | Åpne reservasjoner, i kø eller klare til henting. |
-| Dine reservasjoner | Titler du står i kø for, eller som er holdt av til deg. |
+| Kort               | `CardDescription`                                                                |
+| ------------------ | -------------------------------------------------------------------------------- |
+| Bøker              | Åpne en tittel for å låne den, eller reserver den hvis alle eksemplarene er ute. |
+| Brukere            | Åpne en person for å se lånene og endre opplysningene.                           |
+| Lån                | Bøker som er ute nå. Returen registreres under Administrasjon.                   |
+| Dine lån           | Bøker du har ute nå. Du forlenger dem under Mine lån.                            |
+| Reservasjoner      | Åpne reservasjoner, i kø eller klare til henting.                                |
+| Dine reservasjoner | Titler du står i kø for, eller som er holdt av til deg.                          |
 
 Metadata: tittelen er «Søk – Bibliotek», og beskrivelsen er «Søk på tvers av
 samlingen og lånene dine».
@@ -328,7 +450,8 @@ All matching samles her:
 - `fold(text)` flyttes fra `lib/books.ts` og får reglene fra Normalisering.
 - `parseQuery(q: string | string[] | undefined): ParsedQuery | null`. Den gir
   ord, ISBN-fragment og komplett ISBN, eller `null` for et tomt søk.
-- `matchesQuery(query: ParsedQuery, haystack: { text: string[]; isbn?: string }): boolean`.
+- `matchesQuery(query: ParsedQuery, haystack: { text: string[]; names?: string[]; isbn?: string }): boolean`.
+  `names` søkes som tekst og på initialer (`initials(name)`).
 - `matchesBookQuery` og `searchBooks` flyttes hit fra `lib/books.ts` med samme
   signatur. Importene på `/` og `/admin/boker` oppdateres.
 
@@ -340,33 +463,33 @@ modulene.
 ### `searchLibrary` i `lib/loans.ts`
 
 ```ts
-export type SearchScope = "public" | "own" | "desk";
+export type SearchScope = "public" | "own" | "desk"
 
-export type BorrowerHit = Borrower & { onLoan: number };
+export type BorrowerHit = Borrower & { onLoan: number }
 
 export type SearchResults = {
   /** Søket slik det ble skrevet, trimmet. "" når det mangler. */
-  query: string;
-  scope: SearchScope;
+  query: string
+  scope: SearchScope
   /** false for et tomt søk, også ett som bare var tegnsetting. */
-  searched: boolean;
-  books: BookView[];
+  searched: boolean
+  books: BookView[]
   /** Alltid tom utenfor "desk". */
-  borrowers: BorrowerHit[];
+  borrowers: BorrowerHit[]
   /** Bare aktive lån, og bare personens egne utenfor "desk". */
-  loans: LoanView[];
+  loans: LoanView[]
   /** Bare åpne reservasjoner, og bare personens egne utenfor "desk". */
-  reservations: ReservationView[];
-  total: number;
+  reservations: ReservationView[]
+  total: number
   /** Bokens id når søket er et komplett ISBN og boken er det eneste treffet. */
-  isbnTarget: string | null;
-};
+  isbnTarget: string | null
+}
 
 export async function searchLibrary(
   q: string | string[] | undefined,
   viewer: Borrower | null,
   today: DateInput = new Date()
-): Promise<SearchResults>;
+): Promise<SearchResults>
 ```
 
 Funksjonen hører hjemme i `lib/loans.ts`, fordi `toBookView`, `toLoanView` og
@@ -379,8 +502,8 @@ fordi radene ikke har handlinger. Omfanget avgjøres av `viewer` og
 Siden gjør dette:
 
 ```ts
-const results = await searchLibrary(q, viewer);
-if (results.isbnTarget) redirect(`/boker/${results.isbnTarget}`);
+const results = await searchLibrary(q, viewer)
+if (results.isbnTarget) redirect(`/boker/${results.isbnTarget}`)
 ```
 
 ### Revalidering
@@ -399,7 +522,15 @@ Lag `components/site-search.tsx` med to eksporter:
   `autoFocus` som props.
 
 Begge bruker `next/form` og har `action="/sok"`. `CatalogueSearch` blir
-stående som den er.
+stående som den er. Filen er en klientkomponent (`"use client"`), fordi
+`HeaderSearch` har tilstand og også brukes direkte fra `/stil`.
+
+`components/ui/autocomplete.tsx` eksporterer `Autocomplete`,
+`AutocompleteInput` (en `InputGroup` som også er Base UI sin input-gruppe, så
+popupen ligger kant i kant med hele feltet), `AutocompleteContent`,
+`AutocompleteList`, `AutocompleteItem`, `AutocompleteStatus` og
+`AutocompleteSeparator`. `/stil` viser listen med og uten treff, holdt åpen
+med eksempeldata (`inline`), uten å hente noe.
 
 ## Dokumentasjon som skal oppdateres
 
@@ -429,24 +560,36 @@ import. Seed har ingen reservasjoner, så testen lager én: `borrower-2`
 reserverer `book-5`. Radene uten reservasjon er kontrollert mot en prototype av
 reglene på seed-dataene.
 
-| Hvem | Søk | Forventet |
-| --- | --- | --- |
-| `borrower-4` (bibliotekar) | `marit` | Brukere: `borrower-1`. Lån: `loan-1`, `loan-2` (`loan-3` er levert). Bøker: ingen |
-| `borrower-4` | `marit tolkien` | Bare `loan-2` |
-| `borrower-4` | `saether`, `Sæther`, `sather` | `borrower-4`. Den siste treffer via e-posten `ingrid.sather@…` |
-| `borrower-4` | `0-618-64015-0` | `book-2` og `loan-2`. `isbnTarget` er `null` |
-| `borrower-4` | `jonas prince` | Reservasjonen til `borrower-2` |
-| `borrower-2` (låner) | `marit` | Ingenting, omfanget er `own` |
-| `borrower-2` | `prince` | `book-5` og egen reservasjon. Ikke `loan-1`, som er Marits |
-| `borrower-1` | `prince` | `book-5` og `loan-1`. Ikke reservasjonen til `borrower-2` |
-| `borrower-1` | `harry` | `book-1`. Ingen lån, fordi `loan-3` er levert |
-| `null` | `marit` | Ingenting, omfanget er `public` |
-| `null` | `978 0 618 64015 7` | `book-2`. `isbnTarget` er `book-2` |
-| `null` | `---` | `searched` er `false` |
+| Hvem                       | Søk                           | Forventet                                                                         |
+| -------------------------- | ----------------------------- | --------------------------------------------------------------------------------- |
+| `borrower-4` (bibliotekar) | `marit`                       | Brukere: `borrower-1`. Lån: `loan-1`, `loan-2` (`loan-3` er levert). Bøker: ingen |
+| `borrower-4`               | `marit tolkien`               | Bare `loan-2`                                                                     |
+| `borrower-4`               | `saether`, `Sæther`, `sather` | `borrower-4`. Den siste treffer via e-posten `ingrid.sather@…`                    |
+| `borrower-4`               | `0-618-64015-0`               | `book-2` og `loan-2`. `isbnTarget` er `null`                                      |
+| `borrower-4`               | `jonas prince`                | Reservasjonen til `borrower-2`                                                    |
+| `borrower-2` (låner)       | `marit`                       | Ingenting, omfanget er `own`                                                      |
+| `borrower-2`               | `prince`                      | `book-5` og egen reservasjon. Ikke `loan-1`, som er Marits                        |
+| `borrower-1`               | `prince`                      | `book-5` og `loan-1`. Ikke reservasjonen til `borrower-2`                         |
+| `borrower-1`               | `harry`                       | `book-1`. Ingen lån, fordi `loan-3` er levert                                     |
+| `null`                     | `marit`                       | Ingenting, omfanget er `public`                                                   |
+| `null`                     | `978 0 618 64015 7`           | `book-2`. `isbnTarget` er `book-2`                                                |
+| `null`                     | `---`                         | `searched` er `false`                                                             |
+| `borrower-4`               | `jrrt`                        | `book-2` og `loan-2`, via initialene                                              |
+| `null`                     | `jkr`                         | `book-1`                                                                          |
+
+**Initialer** i `lib/search.test.ts`: `initials()` for punktum, bindestrek,
+mellomnavn og æøå, og `matchesBookQuery` for alle søkene i Initialer-tabellen.
+Seed har ingen utskrevne mellomnavn, så Karl Ove Knausgård er en egen testbok
+(`ove`, `kok`, `k o knausgard`). `xyz`, `jkx`, `rrt` og `kk` gir ikke treff.
+
+**`lib/books.route.test.ts`** kaller `GET /api/books` med samme oppsett som
+`lib/jobs.route.test.ts`: uten `q` alle titler, med `q` riktig bok for hvert
+søk over (også `xyz` → tom liste), rekkefølgen `byTitle`, og at `marit` gir
+`{ query, books: [] }` uten personer eller lån.
 
 ## Ferdig når
 
-- `npm test`, `npx tsc --noEmit` og `npm run lint` går gjennom.
+- `npm test`, `npx tsc --noEmit`, `npm run lint` og `npm run build` går gjennom.
 - `/sok` er prøvd i nettleseren som utlogget, som låner (`borrower-1`) og som
   bibliotekar (`borrower-4`). Sjekk tomt søk, null treff, ett treff, ISBN som
   sender deg videre, og visningen på mobilbredde. Ingen tabell skal rulle

@@ -1,10 +1,18 @@
-import { isLibrarian } from "@/lib/auth";
-import { countAvailableCopies, countHeldCopies, isActive } from "@/lib/availability";
-import { byTitle } from "@/lib/books";
-import { addDays, daysBetween, type DateInput } from "@/lib/dates";
-import * as db from "@/lib/db";
-import { calculateLateFee, daysOverdue } from "@/lib/fees";
-import { renewalBlock, type RenewalBlock, type RenewalResult } from "@/lib/renewals";
+import { isLibrarian } from "@/lib/auth"
+import {
+  countAvailableCopies,
+  countHeldCopies,
+  isActive,
+} from "@/lib/availability"
+import { byTitle } from "@/lib/books"
+import { addDays, daysBetween, type DateInput } from "@/lib/dates"
+import * as db from "@/lib/db"
+import { calculateLateFee, daysOverdue } from "@/lib/fees"
+import {
+  renewalBlock,
+  type RenewalBlock,
+  type RenewalResult,
+} from "@/lib/renewals"
 import {
   canBorrow,
   hasWaiting,
@@ -18,7 +26,7 @@ import {
   type CancelReservationResult,
   type ReservationBlock,
   type ReservationResult,
-} from "@/lib/reservations";
+} from "@/lib/reservations"
 import {
   bookHaystack,
   matchesQuery,
@@ -26,7 +34,7 @@ import {
   personHaystack,
   searchBooks,
   type Haystack,
-} from "@/lib/search";
+} from "@/lib/search"
 import type {
   Book,
   Borrower,
@@ -35,37 +43,41 @@ import type {
   LoanError,
   OutboxMessage,
   Reservation,
-} from "@/lib/types";
+} from "@/lib/types"
 
 /** How long a loan runs, from the day it is taken out. */
-export const LOAN_PERIOD_DAYS = 28;
+export const LOAN_PERIOD_DAYS = 28
 
 export function dueDateFor(borrowedAt: DateInput): Date {
-  return addDays(borrowedAt, LOAN_PERIOD_DAYS);
+  return addDays(borrowedAt, LOAN_PERIOD_DAYS)
 }
 
 /* --------------------------------------------------------------- status --- */
 
-export type LoanStatus = "active" | "overdue" | "returned";
+export type LoanStatus = "active" | "overdue" | "returned"
 
 export function getLoanStatus(loan: Loan, today: DateInput): LoanStatus {
-  if (!isActive(loan)) return "returned";
-  return daysOverdue(loan, today) > 0 ? "overdue" : "active";
+  if (!isActive(loan)) return "returned"
+  return daysOverdue(loan, today) > 0 ? "overdue" : "active"
 }
 
 /** A loan with everything a screen or an API response needs to describe it. */
 export type LoanView = Loan & {
-  status: LoanStatus;
-  daysOverdue: number;
-  daysRemaining: number;
-  lateFee: number;
+  status: LoanStatus
+  daysOverdue: number
+  daysRemaining: number
+  lateFee: number
   /** What stops the borrower renewing this loan today; `null` when nothing does. */
-  renewalBlock: RenewalBlock | null;
-  book: Book | null;
-  borrower: Borrower | null;
-};
+  renewalBlock: RenewalBlock | null
+  book: Book | null
+  borrower: Borrower | null
+}
 
-function toLoanView(loan: Loan, today: DateInput, database: Database): LoanView {
+function toLoanView(
+  loan: Loan,
+  today: DateInput,
+  database: Database
+): LoanView {
   return {
     ...loan,
     status: getLoanStatus(loan, today),
@@ -79,13 +91,14 @@ function toLoanView(loan: Loan, today: DateInput, database: Database): LoanView 
     ),
     book: database.books.find((book) => book.id === loan.bookId) ?? null,
     borrower:
-      database.borrowers.find((borrower) => borrower.id === loan.borrowerId) ?? null,
-  };
+      database.borrowers.find((borrower) => borrower.id === loan.borrowerId) ??
+      null,
+  }
 }
 
 async function describe(loans: Loan[], today: DateInput): Promise<LoanView[]> {
-  const database = await db.getSettled(today);
-  return loans.map((loan) => toLoanView(loan, today, database));
+  const database = await db.getSettled(today)
+  return loans.map((loan) => toLoanView(loan, today, database))
 }
 
 /* --------------------------------------------------------- availability --- */
@@ -93,33 +106,41 @@ async function describe(loans: Loan[], today: DateInput): Promise<LoanView[]> {
 /** Where one signed-in person stands with a title. */
 export type ViewerStanding = {
   /** A copy is on the shelf for anyone, or one is held for them. */
-  canBorrow: boolean;
+  canBorrow: boolean
   /** Their open reservation on the title, if they have one. */
-  reservation: ReservationView | null;
+  reservation: ReservationView | null
   /** Why they cannot reserve it, or `null` when they can. */
-  reservationBlock: ReservationBlock | null;
-};
+  reservationBlock: ReservationBlock | null
+}
 
 /** A book plus where its copies are right now, and who is queueing for it. */
 export type BookView = Book & {
   /** On the shelf, free for anyone to borrow. */
-  available: number;
+  available: number
   /** In someone's bag. */
-  onLoan: number;
+  onLoan: number
   /** On the pickup shelf, set aside for someone in the queue. */
-  held: number;
+  held: number
   /** People in the queue without a copy set aside yet. */
-  waiting: number;
+  waiting: number
   /** Set when the book is described for a signed-in person. */
-  viewer: ViewerStanding | null;
-};
+  viewer: ViewerStanding | null
+}
 
-function toBookView(book: Book, database: Database, viewerId: string | null): BookView {
-  const available = countAvailableCopies(book, database.loans, database.reservations);
-  const held = countHeldCopies(database.reservations, book.id);
+function toBookView(
+  book: Book,
+  database: Database,
+  viewerId: string | null
+): BookView {
+  const available = countAvailableCopies(
+    book,
+    database.loans,
+    database.reservations
+  )
+  const held = countHeldCopies(database.reservations, book.id)
   const mine = viewerId
     ? openReservationFor(database.reservations, book.id, viewerId)
-    : null;
+    : null
 
   return {
     ...book,
@@ -134,7 +155,7 @@ function toBookView(book: Book, database: Database, viewerId: string | null): Bo
           reservationBlock: reservationBlock(database, book, viewerId),
         }
       : null,
-  };
+  }
 }
 
 /** The whole collection. Pass `viewerId` to learn where that person stands with each title. */
@@ -142,8 +163,8 @@ export async function listBooks(
   today: DateInput = new Date(),
   viewerId: string | null = null
 ): Promise<BookView[]> {
-  const database = await db.getSettled(today);
-  return database.books.map((book) => toBookView(book, database, viewerId));
+  const database = await db.getSettled(today)
+  return database.books.map((book) => toBookView(book, database, viewerId))
 }
 
 export async function findBook(
@@ -151,54 +172,66 @@ export async function findBook(
   today: DateInput = new Date(),
   viewerId: string | null = null
 ): Promise<BookView | null> {
-  const database = await db.getSettled(today);
-  const book = database.books.find((candidate) => candidate.id === id);
-  return book ? toBookView(book, database, viewerId) : null;
+  const database = await db.getSettled(today)
+  const book = database.books.find((candidate) => candidate.id === id)
+  return book ? toBookView(book, database, viewerId) : null
 }
 
 /* ---------------------------------------------------------- reservations --- */
 
-export type ReservationStatus = "waiting" | "ready";
+export type ReservationStatus = "waiting" | "ready"
 
 /** An open reservation with everything a screen needs to describe it. */
 export type ReservationView = Reservation & {
   /** `ready` once a copy is set aside. */
-  status: ReservationStatus;
+  status: ReservationStatus
   /** Place in the queue, from 1; `null` once a copy is held. */
-  position: number | null;
+  position: number | null
   /** The last day to collect a held copy; `null` while waiting. */
-  deadline: string | null;
-  book: Book | null;
-  borrower: Borrower | null;
-};
+  deadline: string | null
+  book: Book | null
+  borrower: Borrower | null
+}
 
-function toReservationView(reservation: Reservation, database: Database): ReservationView {
+function toReservationView(
+  reservation: Reservation,
+  database: Database
+): ReservationView {
   return {
     ...reservation,
     status: reservation.readyAt === null ? "waiting" : "ready",
     position: queuePosition(database.reservations, reservation),
-    deadline: reservation.readyAt ? holdDeadline(reservation.readyAt).toISOString() : null,
+    deadline: reservation.readyAt
+      ? holdDeadline(reservation.readyAt).toISOString()
+      : null,
     book: database.books.find((book) => book.id === reservation.bookId) ?? null,
     borrower:
-      database.borrowers.find((borrower) => borrower.id === reservation.borrowerId) ??
-      null,
-  };
+      database.borrowers.find(
+        (borrower) => borrower.id === reservation.borrowerId
+      ) ?? null,
+  }
 }
 
 /** Held copies first, soonest deadline on top; then the queue, by when people joined. */
 function byUrgency(a: ReservationView, b: ReservationView): number {
-  if (a.deadline && b.deadline) return a.deadline.localeCompare(b.deadline);
-  if (a.deadline) return -1;
-  if (b.deadline) return 1;
-  return a.reservedAt.localeCompare(b.reservedAt);
+  if (a.deadline && b.deadline) return a.deadline.localeCompare(b.deadline)
+  if (a.deadline) return -1
+  if (b.deadline) return 1
+  return a.reservedAt.localeCompare(b.reservedAt)
 }
 
 /** One person's open reservations, held copies first. */
-function openReservationsOf(database: Database, borrowerId: string): ReservationView[] {
+function openReservationsOf(
+  database: Database,
+  borrowerId: string
+): ReservationView[] {
   return database.reservations
-    .filter((reservation) => isOpen(reservation) && reservation.borrowerId === borrowerId)
+    .filter(
+      (reservation) =>
+        isOpen(reservation) && reservation.borrowerId === borrowerId
+    )
     .map((reservation) => toReservationView(reservation, database))
-    .sort(byUrgency);
+    .sort(byUrgency)
 }
 
 /** One person's open reservations. */
@@ -206,7 +239,7 @@ export async function listReservationsForBorrower(
   borrowerId: string,
   today: DateInput = new Date()
 ): Promise<ReservationView[]> {
-  return openReservationsOf(await db.getSettled(today), borrowerId);
+  return openReservationsOf(await db.getSettled(today), borrowerId)
 }
 
 /** The active loans on one title, so a detail page can say when a copy is back. */
@@ -214,25 +247,29 @@ export async function listActiveLoansForBook(
   id: string,
   today: DateInput = new Date()
 ): Promise<LoanView[]> {
-  const loans = await db.getActiveLoans();
+  const loans = await db.getActiveLoans()
   return describe(
     loans.filter((loan) => loan.bookId === id),
     today
-  );
+  )
 }
 
 /* --------------------------------------------------------------- queries --- */
 
 /** One person's loans, current and historic, in no particular order. */
-function loansOf(database: Database, borrowerId: string, today: DateInput): LoanView[] {
+function loansOf(
+  database: Database,
+  borrowerId: string,
+  today: DateInput
+): LoanView[] {
   return database.loans
     .filter((loan) => loan.borrowerId === borrowerId)
-    .map((loan) => toLoanView(loan, today, database));
+    .map((loan) => toLoanView(loan, today, database))
 }
 
 /** Latest loan first. */
 function newestFirst(a: LoanView, b: LoanView): number {
-  return b.borrowedAt.localeCompare(a.borrowedAt);
+  return b.borrowedAt.localeCompare(a.borrowedAt)
 }
 
 /** One person's loans, current and historic, newest first. */
@@ -240,7 +277,9 @@ export async function listLoansForBorrower(
   borrowerId: string,
   today: DateInput = new Date()
 ): Promise<LoanView[]> {
-  return loansOf(await db.getSettled(today), borrowerId, today).sort(newestFirst);
+  return loansOf(await db.getSettled(today), borrowerId, today).sort(
+    newestFirst
+  )
 }
 
 /** A person's own view: loans newest first and open reservations, from one read. */
@@ -248,11 +287,11 @@ export async function listBorrowerActivity(
   borrowerId: string,
   today: DateInput = new Date()
 ): Promise<{ loans: LoanView[]; reservations: ReservationView[] }> {
-  const database = await db.getSettled(today);
+  const database = await db.getSettled(today)
   return {
     loans: loansOf(database, borrowerId, today).sort(newestFirst),
     reservations: openReservationsOf(database, borrowerId),
-  };
+  }
 }
 
 /**
@@ -263,19 +302,19 @@ export async function listBorrowerActivity(
 export function outstandingFees(loans: LoanView[]): number {
   return loans
     .filter((loan) => loan.status !== "returned")
-    .reduce((sum, loan) => sum + loan.lateFee, 0);
+    .reduce((sum, loan) => sum + loan.lateFee, 0)
 }
 
 /** Everything the desk's page about one person shows, each list in its display order. */
 export type BorrowerOverview = {
-  borrower: Borrower;
+  borrower: Borrower
   /** Out now, the one due first on top. */
-  active: LoanView[];
+  active: LoanView[]
   /** Back on the shelf, the latest return on top. */
-  returned: LoanView[];
+  returned: LoanView[]
   /** Open only, held copies first. */
-  reservations: ReservationView[];
-};
+  reservations: ReservationView[]
+}
 
 /**
  * One person with their loans and open reservations, read in a single pass —
@@ -285,11 +324,13 @@ export async function findBorrowerOverview(
   borrowerId: string,
   today: DateInput = new Date()
 ): Promise<BorrowerOverview | null> {
-  const database = await db.getSettled(today);
-  const borrower = database.borrowers.find((candidate) => candidate.id === borrowerId);
-  if (!borrower) return null;
+  const database = await db.getSettled(today)
+  const borrower = database.borrowers.find(
+    (candidate) => candidate.id === borrowerId
+  )
+  if (!borrower) return null
 
-  const loans = loansOf(database, borrowerId, today);
+  const loans = loansOf(database, borrowerId, today)
 
   return {
     borrower,
@@ -300,39 +341,45 @@ export async function findBorrowerOverview(
       .filter((loan) => loan.status === "returned")
       .sort((a, b) => (b.returnedAt ?? "").localeCompare(a.returnedAt ?? "")),
     reservations: openReservationsOf(database, borrowerId),
-  };
+  }
 }
 
-export async function listActiveLoans(today: DateInput = new Date()): Promise<LoanView[]> {
-  return describe(await db.getActiveLoans(), today);
+export async function listActiveLoans(
+  today: DateInput = new Date()
+): Promise<LoanView[]> {
+  return describe(await db.getActiveLoans(), today)
 }
 
 /** Everyone in the register, in the order they were added. */
 export async function listBorrowers(): Promise<Borrower[]> {
-  return db.getBorrowers();
+  return db.getBorrowers()
 }
 
 /** A person in the register with how many books they have out, and have ever borrowed. */
-export type RegisterEntry = Borrower & { onLoan: number; totalLoans: number };
+export type RegisterEntry = Borrower & { onLoan: number; totalLoans: number }
 
 /** The register as the desk sees it: everyone, with their loan counts. */
 export async function listRegister(): Promise<RegisterEntry[]> {
-  const [people, loans] = await Promise.all([db.getBorrowers(), db.getLoans()]);
+  const [people, loans] = await Promise.all([db.getBorrowers(), db.getLoans()])
 
   return people.map((person) => {
-    const mine = loans.filter((loan) => loan.borrowerId === person.id);
-    return { ...person, onLoan: mine.filter(isActive).length, totalLoans: mine.length };
-  });
+    const mine = loans.filter((loan) => loan.borrowerId === person.id)
+    return {
+      ...person,
+      onLoan: mine.filter(isActive).length,
+      totalLoans: mine.length,
+    }
+  })
 }
 
 /** How many loans of `bookId` have ever been registered, returned or not. */
 export async function countLoansForBook(bookId: string): Promise<number> {
-  const loans = await db.getLoans();
-  return loans.filter((loan) => loan.bookId === bookId).length;
+  const loans = await db.getLoans()
+  return loans.filter((loan) => loan.bookId === bookId).length
 }
 
 export async function findBorrower(id: string): Promise<Borrower | null> {
-  return db.getBorrower(id);
+  return db.getBorrower(id)
 }
 
 /* ------------------------------------------------- catalogue and register --- */
@@ -349,17 +396,19 @@ export {
   resetDatabase,
   updateBook,
   updateBorrower,
-} from "@/lib/db";
+} from "@/lib/db"
 
 /* ---------------------------------------------------------------- outbox --- */
 
 /** Every message the app has "sent", newest first. */
 export async function listOutbox(): Promise<OutboxMessage[]> {
-  return db.getOutbox();
+  return db.getOutbox()
 }
 
-export async function findOutboxMessage(id: string): Promise<OutboxMessage | null> {
-  return db.getOutboxMessage(id);
+export async function findOutboxMessage(
+  id: string
+): Promise<OutboxMessage | null> {
+  return db.getOutboxMessage(id)
 }
 
 /**
@@ -367,19 +416,19 @@ export async function findOutboxMessage(id: string): Promise<OutboxMessage | nul
  * «ready» email for every hold that has not had one. Returns what it queued.
  */
 export async function sendHoldNotices(now: Date): Promise<OutboxMessage[]> {
-  return db.settleAndNotify(now);
+  return db.settleAndNotify(now)
 }
 
 /* ---------------------------------------------------------------- search --- */
 
 export type CatalogueResult = {
   /** The whole collection, whatever was searched for. */
-  books: BookView[];
+  books: BookView[]
   /** The search as it was read, or empty when there was none. */
-  query: string;
+  query: string
   /** The titles that match, in the same order as `books`. */
-  matches: BookView[];
-};
+  matches: BookView[]
+}
 
 /** The collection with a catalogue search applied, as the book lists show it. */
 export async function searchCatalogue(
@@ -387,40 +436,40 @@ export async function searchCatalogue(
   today: DateInput = new Date(),
   viewerId: string | null = null
 ): Promise<CatalogueResult> {
-  const books = await listBooks(today, viewerId);
-  return { books, ...searchBooks(books, q) };
+  const books = await listBooks(today, viewerId)
+  return { books, ...searchBooks(books, q) }
 }
 
 /**
  * How far a search reaches. It follows from who is searching, never from the
  * page: `public` when signed out, `own` for a borrower, `desk` for a librarian.
  */
-export type SearchScope = "public" | "own" | "desk";
+export type SearchScope = "public" | "own" | "desk"
 
 /** A person the desk's search found, with how many books they have out. */
-export type BorrowerHit = Borrower & { onLoan: number };
+export type BorrowerHit = Borrower & { onLoan: number }
 
 export type SearchResults = {
   /** The search as typed, trimmed. `""` when it is missing. */
-  query: string;
-  scope: SearchScope;
+  query: string
+  scope: SearchScope
   /** `false` for an empty search, including one that was only punctuation. */
-  searched: boolean;
-  books: BookView[];
+  searched: boolean
+  books: BookView[]
   /** Always empty outside `desk`. */
-  borrowers: BorrowerHit[];
+  borrowers: BorrowerHit[]
   /** Active loans only, and only the viewer's own outside `desk`. */
-  loans: LoanView[];
+  loans: LoanView[]
   /** Open reservations only, and only the viewer's own outside `desk`. */
-  reservations: ReservationView[];
-  total: number;
+  reservations: ReservationView[]
+  total: number
   /** The book's id when the search is a complete ISBN and that book is the only match. */
-  isbnTarget: string | null;
-};
+  isbnTarget: string | null
+}
 
 function scopeFor(viewer: Borrower | null): SearchScope {
-  if (viewer === null) return "public";
-  return isLibrarian(viewer) ? "desk" : "own";
+  if (viewer === null) return "public"
+  return isLibrarian(viewer) ? "desk" : "own"
 }
 
 /**
@@ -432,11 +481,13 @@ function activityHaystack(
   record: { book: Book | null; borrower: Borrower | null },
   scope: SearchScope
 ): Haystack {
-  const book = record.book ? bookHaystack(record.book) : { text: [] };
+  const book: Haystack = record.book ? bookHaystack(record.book) : { text: [] }
   const person =
-    scope === "desk" && record.borrower ? personHaystack(record.borrower).text : [];
+    scope === "desk" && record.borrower
+      ? personHaystack(record.borrower).text
+      : []
 
-  return { text: [...book.text, ...person], isbn: book.isbn };
+  return { text: [...book.text, ...person], names: book.names, isbn: book.isbn }
 }
 
 /**
@@ -450,8 +501,8 @@ export async function searchLibrary(
   viewer: Borrower | null,
   today: DateInput = new Date()
 ): Promise<SearchResults> {
-  const scope = scopeFor(viewer);
-  const parsed = parseQuery(q);
+  const scope = scopeFor(viewer)
+  const parsed = parseQuery(q)
   const empty: SearchResults = {
     query: typeof q === "string" ? q.trim() : "",
     scope,
@@ -462,20 +513,20 @@ export async function searchLibrary(
     reservations: [],
     total: 0,
     isbnTarget: null,
-  };
-  if (parsed === null) return empty;
+  }
+  if (parsed === null) return empty
 
-  const database = await db.getSettled(today);
-  const matches = (haystack: Haystack) => matchesQuery(parsed, haystack);
+  const database = await db.getSettled(today)
+  const matches = (haystack: Haystack) => matchesQuery(parsed, haystack)
   // Other people's loans and reservations are gone before anything is matched,
   // so «marit» finds exactly as little for a borrower as «xyz» does.
   const visible = (record: { borrowerId: string }) =>
-    scope === "desk" || (scope === "own" && record.borrowerId === viewer?.id);
+    scope === "desk" || (scope === "own" && record.borrowerId === viewer?.id)
 
   const books = database.books
     .filter((book) => matches(bookHaystack(book)))
     .sort(byTitle)
-    .map((book) => toBookView(book, database, null));
+    .map((book) => toBookView(book, database, null))
 
   const borrowers =
     scope === "desk"
@@ -488,21 +539,22 @@ export async function searchLibrary(
               (loan) => loan.borrowerId === person.id && isActive(loan)
             ).length,
           }))
-      : [];
+      : []
 
   const loans = database.loans
     .filter((loan) => isActive(loan) && visible(loan))
     .map((loan) => toLoanView(loan, today, database))
     .filter((loan) => matches(activityHaystack(loan, scope)))
-    .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+    .sort((a, b) => a.dueAt.localeCompare(b.dueAt))
 
   const reservations = database.reservations
     .filter((reservation) => isOpen(reservation) && visible(reservation))
     .map((reservation) => toReservationView(reservation, database))
     .filter((reservation) => matches(activityHaystack(reservation, scope)))
-    .sort(byDeskOrder);
+    .sort(byDeskOrder)
 
-  const total = books.length + borrowers.length + loans.length + reservations.length;
+  const total =
+    books.length + borrowers.length + loans.length + reservations.length
 
   return {
     ...empty,
@@ -517,23 +569,22 @@ export async function searchLibrary(
       parsed.completeIsbn !== null && total === 1 && books.length === 1
         ? books[0].id
         : null,
-  };
+  }
 }
 
 /* -------------------------------------------------------------- commands --- */
 
 export type LoanResult =
-  | { ok: true; loan: Loan }
-  | { ok: false; error: LoanError };
+  { ok: true; loan: Loan } | { ok: false; error: LoanError }
 
 export type ReturnResult =
   | {
-      ok: true;
-      loan: Loan;
+      ok: true
+      loan: Loan
       /** Who the returned copy was set aside for, if anyone was queueing. */
-      heldFor: Reservation | null;
+      heldFor: Reservation | null
     }
-  | { ok: false; error: LoanError };
+  | { ok: false; error: LoanError }
 
 /**
  * Lends out a copy of `bookId` to `borrowerId` for the standard loan period.
@@ -545,8 +596,8 @@ export async function borrowBook(
   borrowerId: string,
   now: Date = new Date()
 ): Promise<LoanResult> {
-  const book = await db.getBook(bookId);
-  if (!book) return { ok: false, error: "book-not-found" };
+  const book = await db.getBook(bookId)
+  if (!book) return { ok: false, error: "book-not-found" }
 
   const loan = await db.createLoan(
     {
@@ -558,13 +609,15 @@ export async function borrowBook(
     // Re-checked against the state the write itself sees, so two borrowers
     // cannot take the last copy at the same moment.
     (database) => {
-      const current = database.books.find((candidate) => candidate.id === bookId);
-      return current !== undefined && canBorrow(database, current, borrowerId);
+      const current = database.books.find(
+        (candidate) => candidate.id === bookId
+      )
+      return current !== undefined && canBorrow(database, current, borrowerId)
     }
-  );
+  )
 
-  if (!loan) return { ok: false, error: "no-copies-available" };
-  return { ok: true, loan };
+  if (!loan) return { ok: false, error: "no-copies-available" }
+  return { ok: true, loan }
 }
 
 /**
@@ -575,14 +628,14 @@ export async function registerReturn(
   loanId: string,
   now: Date = new Date()
 ): Promise<ReturnResult> {
-  const existing = await db.getLoan(loanId);
-  if (!existing) return { ok: false, error: "loan-not-found" };
-  if (!isActive(existing)) return { ok: false, error: "already-returned" };
+  const existing = await db.getLoan(loanId)
+  if (!existing) return { ok: false, error: "loan-not-found" }
+  if (!isActive(existing)) return { ok: false, error: "already-returned" }
 
-  const returned = await db.markLoanReturned(loanId, now.toISOString());
-  if (!returned) return { ok: false, error: "loan-not-found" };
+  const returned = await db.markLoanReturned(loanId, now.toISOString())
+  if (!returned) return { ok: false, error: "loan-not-found" }
 
-  return { ok: true, ...returned };
+  return { ok: true, ...returned }
 }
 
 /** The desk's order: held copies first, then the queues, title by title, in queue order. */
@@ -591,18 +644,18 @@ function byDeskOrder(a: ReservationView, b: ReservationView): number {
     byUrgency(a, b) ||
     (a.book?.title ?? "").localeCompare(b.book?.title ?? "", "nb") ||
     (a.position ?? 0) - (b.position ?? 0)
-  );
+  )
 }
 
 /** Every open reservation in the library: held copies first, then the queues. */
 export async function listOpenReservations(
   today: DateInput = new Date()
 ): Promise<ReservationView[]> {
-  const database = await db.getSettled(today);
+  const database = await db.getSettled(today)
   return database.reservations
     .filter(isOpen)
     .map((reservation) => toReservationView(reservation, database))
-    .sort(byDeskOrder);
+    .sort(byDeskOrder)
 }
 
 /** One open reservation, or `null` once it has been collected, cancelled or run out. */
@@ -610,11 +663,11 @@ export async function findOpenReservation(
   id: string,
   today: DateInput = new Date()
 ): Promise<ReservationView | null> {
-  const database = await db.getSettled(today);
+  const database = await db.getSettled(today)
   const reservation = database.reservations.find(
     (candidate) => candidate.id === id && isOpen(candidate)
-  );
-  return reservation ? toReservationView(reservation, database) : null;
+  )
+  return reservation ? toReservationView(reservation, database) : null
 }
 
 /**
@@ -622,25 +675,25 @@ export async function findOpenReservation(
  * cancelled, and the desk has not moved it yet.
  */
 export type HoldToHandle = {
-  id: string;
-  outcome: "expired" | "cancelled";
-  closedAt: string;
+  id: string
+  outcome: "expired" | "cancelled"
+  closedAt: string
   /** The last day the copy could have been collected. */
-  deadline: string;
-  book: Book | null;
+  deadline: string
+  book: Book | null
   /** Who the copy was set aside for. */
-  borrower: Borrower | null;
+  borrower: Borrower | null
   /** Who it is set aside for now — `null` means back on the shelf. */
-  passedTo: Borrower | null;
-};
+  passedTo: Borrower | null
+}
 
 /** Copies the desk has to move, the longest-standing first. */
 export async function listHoldsToHandle(
   today: DateInput = new Date()
 ): Promise<HoldToHandle[]> {
-  const database = await db.getSettled(today);
+  const database = await db.getSettled(today)
   const person = (id: string | undefined) =>
-    database.borrowers.find((borrower) => borrower.id === id) ?? null;
+    database.borrowers.find((borrower) => borrower.id === id) ?? null
 
   return database.reservations
     .filter(needsHandling)
@@ -650,13 +703,14 @@ export async function listHoldsToHandle(
       outcome: reservation.outcome as HoldToHandle["outcome"],
       closedAt: reservation.closedAt!,
       deadline: holdDeadline(reservation.readyAt!).toISOString(),
-      book: database.books.find((book) => book.id === reservation.bookId) ?? null,
+      book:
+        database.books.find((book) => book.id === reservation.bookId) ?? null,
       borrower: person(reservation.borrowerId),
       passedTo: person(
         database.reservations.find((next) => next.id === reservation.passedToId)
           ?.borrowerId
       ),
-    }));
+    }))
 }
 
 /** Records that the desk has moved the copy of a hold that ended uncollected. */
@@ -664,7 +718,7 @@ export async function markHoldHandled(
   reservationId: string,
   now: Date = new Date()
 ): Promise<Reservation | null> {
-  return db.markHoldHandled(reservationId, now);
+  return db.markHoldHandled(reservationId, now)
 }
 
 /** Puts `borrowerId` in the queue for a title with every copy out. */
@@ -673,7 +727,7 @@ export async function reserveBook(
   borrowerId: string,
   now: Date = new Date()
 ): Promise<ReservationResult> {
-  return db.createReservation(bookId, borrowerId, now);
+  return db.createReservation(bookId, borrowerId, now)
 }
 
 /**
@@ -685,7 +739,7 @@ export async function cancelReservation(
   borrowerId: string | null,
   now: Date = new Date()
 ): Promise<CancelReservationResult> {
-  return db.cancelReservation(reservationId, borrowerId, now);
+  return db.cancelReservation(reservationId, borrowerId, now)
 }
 
 /**
@@ -697,5 +751,5 @@ export async function renewLoan(
   borrowerId: string,
   now: Date = new Date()
 ): Promise<RenewalResult> {
-  return db.renewLoan(loanId, borrowerId, now);
+  return db.renewLoan(loanId, borrowerId, now)
 }

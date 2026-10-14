@@ -1,5 +1,5 @@
-import { ISBN_PATTERN, normalizeIsbn } from "@/lib/books";
-import type { Book, Borrower } from "@/lib/types";
+import { ISBN_PATTERN, normalizeIsbn } from "@/lib/books"
+import type { Book, Borrower } from "@/lib/types"
 
 /**
  * How a search box reads what was typed, and whether a record answers it. Pure —
@@ -32,48 +32,66 @@ export function fold(text: string): string {
       .replace(/ø/g, "o")
       .replace(/aa/g, "a")
       .replace(/[^\p{L}\p{N}\s]/gu, "")
-  );
+  )
+}
+
+/**
+ * The first letter of every part of a name, folded: «J.K. Rowling» → `jkr`,
+ * «J.R.R. Tolkien» → `jrrt`, «Tor Åge Bringsværd» → `tab`. A dot or a hyphen
+ * parts a name as a space does, so «Saint-Exupéry» gives two letters.
+ *
+ * `fold` alone cannot give these: it drops the dots, and «J.K.» becomes the one
+ * word `jk`.
+ */
+export function initials(name: string): string {
+  return name
+    .split(/[^\p{L}\p{M}\p{N}]+/u)
+    .map((part) => fold(part).charAt(0))
+    .join("")
 }
 
 /** At least three digits, so «9» does not match every ISBN in the catalogue. */
-const ISBN_FRAGMENT = /^\d{3,}X?$/;
+const ISBN_FRAGMENT = /^\d{3,}X?$/
 
 /** What a search box sent, read once. `null` from `parseQuery` means nothing was searched. */
 export type ParsedQuery = {
   /** As typed, trimmed. */
-  query: string;
+  query: string
   /** Folded words. Every one must match the same record. */
-  terms: string[];
+  terms: string[]
   /**
    * The whole search as one ISBN fragment, separators dropped, when it is only
    * digits, spaces and hyphens (and perhaps a final X). `978 0 618 64015 7`
    * would otherwise split into words too short to match anything.
    */
-  isbnFragment: string | null;
+  isbnFragment: string | null
   /** The whole search when it is a complete ISBN-10 or ISBN-13, normalised. */
-  completeIsbn: string | null;
-};
+  completeIsbn: string | null
+}
 
 /**
  * Reads the `q` search parameter. Missing, blank, repeated (`?q=a&q=b`) or
  * nothing but punctuation all come back as `null`: there is nothing to search for.
  */
-export function parseQuery(q: string | string[] | undefined): ParsedQuery | null {
-  if (typeof q !== "string") return null;
+export function parseQuery(
+  q: string | string[] | undefined
+): ParsedQuery | null {
+  if (typeof q !== "string") return null
 
-  const query = q.trim();
-  const terms = fold(query).split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return null;
+  const query = q.trim()
+  const terms = fold(query).split(/\s+/).filter(Boolean)
+  if (terms.length === 0) return null
 
-  const compact = normalizeIsbn(query);
-  const isbnFragment = ISBN_FRAGMENT.test(compact) ? compact : null;
+  const compact = normalizeIsbn(query)
+  const isbnFragment = ISBN_FRAGMENT.test(compact) ? compact : null
 
   return {
     query,
     terms,
     isbnFragment,
-    completeIsbn: isbnFragment && ISBN_PATTERN.test(isbnFragment) ? isbnFragment : null,
-  };
+    completeIsbn:
+      isbnFragment && ISBN_PATTERN.test(isbnFragment) ? isbnFragment : null,
+  }
 }
 
 /**
@@ -82,57 +100,74 @@ export function parseQuery(q: string | string[] | undefined): ParsedQuery | null
  * The check digit is left out because `validateBook` never verifies it.
  */
 function isbnCore(isbn: string): string | null {
-  if (/^\d{9}[\dX]$/.test(isbn)) return isbn.slice(0, 9);
-  if (/^978\d{10}$/.test(isbn)) return isbn.slice(3, 12);
-  return null;
+  if (/^\d{9}[\dX]$/.test(isbn)) return isbn.slice(0, 9)
+  if (/^978\d{10}$/.test(isbn)) return isbn.slice(3, 12)
+  return null
 }
 
-/** The fields a record is searched on. `isbn` is matched on its digits, never as text. */
-export type Haystack = { text: string[]; isbn?: string };
+/**
+ * The fields a record is searched on. `names` are searched like `text`, and by
+ * their initials as well. `isbn` is matched on its digits, never as text.
+ */
+export type Haystack = { text: string[]; names?: string[]; isbn?: string }
 
 /**
  * Whether a record answers a search. Every word must appear somewhere in the
  * record — any field, any order, part of a word is enough — so «tolkien 1954»
  * narrows instead of widening.
  *
+ * A word also answers to the initials of a name, read from the first letter:
+ * `jkr` and `jk` find «J.K. Rowling», `go` finds «George Orwell», `jkx` finds
+ * neither.
+ *
  * The ISBN also matches the whole search at once: as a fragment of its digits,
  * and, for a complete ISBN, as the same book under the other length, so
  * `0-618-64015-0` finds `978-0-618-64015-7`.
  */
 export function matchesQuery(query: ParsedQuery, haystack: Haystack): boolean {
-  const isbn = haystack.isbn === undefined ? null : normalizeIsbn(haystack.isbn);
+  const isbn = haystack.isbn === undefined ? null : normalizeIsbn(haystack.isbn)
 
   if (isbn !== null) {
-    if (query.isbnFragment && isbn.includes(query.isbnFragment)) return true;
+    if (query.isbnFragment && isbn.includes(query.isbnFragment)) return true
 
-    const core = query.completeIsbn ? isbnCore(query.completeIsbn) : null;
-    if (core !== null && core === isbnCore(isbn)) return true;
+    const core = query.completeIsbn ? isbnCore(query.completeIsbn) : null
+    if (core !== null && core === isbnCore(isbn)) return true
   }
 
-  const fields = haystack.text.map(fold);
+  const names = haystack.names ?? []
+  const fields = [...haystack.text, ...names].map(fold)
+  const nameInitials = names.map(initials)
 
   return query.terms.every((term) => {
-    if (fields.some((field) => field.includes(term))) return true;
+    if (fields.some((field) => field.includes(term))) return true
+    if (nameInitials.some((letters) => letters.startsWith(term))) return true
 
-    const digits = normalizeIsbn(term);
-    return isbn !== null && ISBN_FRAGMENT.test(digits) && isbn.includes(digits);
-  });
+    const digits = normalizeIsbn(term)
+    return isbn !== null && ISBN_FRAGMENT.test(digits) && isbn.includes(digits)
+  })
 }
 
-/** A title is searched on its title, author, year and ISBN. */
+/** A title is searched on its title, author, year and ISBN, the author by initials too. */
 export function bookHaystack(book: Book): Haystack {
-  return { text: [book.title, book.author, String(book.year)], isbn: book.isbn };
+  return {
+    text: [book.title, String(book.year)],
+    names: [book.author],
+    isbn: book.isbn,
+  }
 }
 
-/** A person is searched on name and email. Never on id or role. */
+/**
+ * A person is searched on name and email. Never on id or role, and not by
+ * initials: that rule is for authors, who often publish under theirs.
+ */
 export function personHaystack(person: Borrower): Haystack {
-  return { text: [person.name, person.email] };
+  return { text: [person.name, person.email] }
 }
 
 /** Whether a book answers a search. A blank search matches every book. */
 export function matchesBookQuery(book: Book, query: string): boolean {
-  const parsed = parseQuery(query);
-  return parsed === null || matchesQuery(parsed, bookHaystack(book));
+  const parsed = parseQuery(query)
+  return parsed === null || matchesQuery(parsed, bookHaystack(book))
 }
 
 /**
@@ -144,11 +179,11 @@ export function searchBooks<T extends Book>(
   books: T[],
   q: string | string[] | undefined
 ): { query: string; matches: T[] } {
-  const parsed = parseQuery(q);
-  if (parsed === null) return { query: "", matches: books };
+  const parsed = parseQuery(q)
+  if (parsed === null) return { query: "", matches: books }
 
   return {
     query: parsed.query,
     matches: books.filter((book) => matchesQuery(parsed, bookHaystack(book))),
-  };
+  }
 }

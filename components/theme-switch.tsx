@@ -21,7 +21,7 @@ export function ThemeSwitch({ theme }: { theme: Theme }) {
   function choose(next: Theme) {
     if (next === shown) return
     document.documentElement.classList.toggle("dark", next === "dark")
-    document.documentElement.style.colorScheme = next
+    document.documentElement.style.setProperty("color-scheme", next)
 
     startTransition(async () => {
       setShown(next)

@@ -178,6 +178,16 @@ text-destructive`), not a solid red block. Sizes: `xs` in table rows, `sm` in
   (`HeaderSearch` in `components/site-search.tsx`) has no button. It only
   starts a search, Enter sends it, and the full recipe with the button is on
   `/sok`, where the search is adjusted.
+- **Suggestions** — the header field suggests books as you type, through
+  `Autocomplete` in `components/ui/autocomplete.tsx` (Base UI's Autocomplete
+  with the registry combobox's classes; the registry has no autocomplete).
+  The popup is a menu surface like `DropdownMenuContent`: `rounded-2xl
+bg-popover`, a ring and a shadow. Book rows put the title in `font-medium`
+  over «forfatter · år» in `text-muted-foreground`, both truncated. A hairline
+  (`AutocompleteSeparator`) sets off the last row, «Vis alle treff for «q»»,
+  which carries the `Search01Icon`. With no books, one muted
+  `AutocompleteStatus` line says so, and the last row stays. A highlighted row
+  is solid `accent`, like a focused menu item.
 - **Icons** — `<HugeiconsIcon icon={SomeIcon} strokeWidth={2} />`. The button and
   badge primitives size icons automatically; don't set `size-*` unless you mean
   to override.

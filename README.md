@@ -36,9 +36,15 @@ npm run reset-data # tilbake til utgangspunktet i data/seed.json
 
 ```
 GET  /api/books              GET  /api/books/[id]
-GET  /api/loans/mine         POST /api/loans
-POST /api/loans/[id]/return  POST /api/jobs/reservasjoner
+GET  /api/books?q=…          GET  /api/loans/mine
+POST /api/loans              POST /api/loans/[id]/return
+POST /api/jobs/reservasjoner
 ```
+
+`GET /api/books?q=…` gir bare titlene som passer søket, i samme rekkefølge som
+bokgruppen på `/sok`: `{ "query": "…", "books": [...] }`. Svaret er det samme
+for alle og inneholder aldri personer, lån eller reservasjoner. Forslagene i
+søkefeltet i toppmenyen kommer herfra (se [`docs/sok-spec.md`](docs/sok-spec.md)).
 
 `POST /api/jobs/reservasjoner` er for en daglig cron (se E-post under). Den krever
 `Authorization: Bearer $CRON_SECRET`, og finnes ikke når `CRON_SECRET` mangler.
