@@ -18,7 +18,12 @@ import { BookStatusBadge } from "@/components/book-status";
 import { CatalogueSearch, NoCatalogueMatches } from "@/components/catalogue-search";
 import { LibrarianRequired } from "@/components/librarian-required";
 import { PageHeading } from "@/components/page-heading";
-import { ColumnHead, IDENTITY_CELL, RecordCell } from "@/components/record-cell";
+import {
+  BookCoverTile,
+  ColumnHead,
+  IDENTITY_CELL,
+  RecordCell,
+} from "@/components/record-cell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -269,7 +274,12 @@ export default async function AdminBooksPage({
                         className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}
                       >
                         <RecordCell
-                          icon={book.available > 0 ? Book02Icon : BookOpen01Icon}
+                          media={
+                            <BookCoverTile
+                              isbn={book.isbn}
+                              icon={book.available > 0 ? Book02Icon : BookOpen01Icon}
+                            />
+                          }
                           name={book.title}
                           href={`/admin/boker/${book.id}`}
                         >

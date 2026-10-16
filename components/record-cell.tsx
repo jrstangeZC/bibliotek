@@ -4,7 +4,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { IconSvgElement } from "@hugeicons/react";
 import { Book02Icon } from "@hugeicons/core-free-icons";
 
+import { BookCover } from "@/components/book-cover";
 import { TableHead } from "@/components/ui/table";
+import { coverUrl } from "@/lib/covers";
 import type { Book } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -45,9 +47,52 @@ export function ColumnHead({
   );
 }
 
+/** The `size-9` muted tile with an icon that leads a record row. */
+export function IconTile({ icon }: { icon: IconSvgElement }) {
+  return (
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted">
+      <HugeiconsIcon
+        icon={icon}
+        strokeWidth={2}
+        className="size-4 text-muted-foreground"
+      />
+    </div>
+  );
+}
+
+/**
+ * A book's cover in the icon tile's place, for `RecordCell`'s `media`: the same
+ * `size-9` slot and never taller than 36 px, so names line up down the column
+ * whatever the cover's proportions. `icon` is the tile shown when there is no
+ * cover — no book, no usable ISBN, or none at Open Library. The cover is
+ * decorative: the title beside it says the same.
+ */
+export function BookCoverTile({
+  isbn,
+  icon,
+}: {
+  isbn: string | undefined;
+  icon: IconSvgElement;
+}) {
+  return (
+    <div className="flex size-9 shrink-0 items-center justify-center">
+      <BookCover
+        src={isbn ? coverUrl(isbn, "M") : null}
+        alt=""
+        width={24}
+        height={36}
+        className="h-9 w-auto max-w-9 rounded-xs object-contain"
+        fallback={<IconTile icon={icon} />}
+      />
+    </div>
+  );
+}
+
 /**
  * The identity cell of a record row: an icon tile, the name, and its qualifier
- * on a second muted line. `href` turns the name into a link.
+ * on a second muted line. `href` turns the name into a link. `media` takes the
+ * tile's place — a book cover, say — and should keep to the same `size-9`
+ * slot so the names line up down the column.
  *
  * Both lines truncate. Table cells are `whitespace-nowrap`, so without this a
  * long title sets the column's minimum width and pushes the whole table into a
@@ -55,27 +100,21 @@ export function ColumnHead({
  */
 export function RecordCell({
   icon,
+  media,
   name,
   href,
   children,
 }: {
   /** Omit for a secondary column — the tile belongs to the identity column. */
   icon?: IconSvgElement;
+  media?: ReactNode;
   name: string;
   href?: string;
   children?: ReactNode;
 }) {
   return (
     <div className="flex items-center gap-3">
-      {icon ? (
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted">
-          <HugeiconsIcon
-            icon={icon}
-            strokeWidth={2}
-            className="size-4 text-muted-foreground"
-          />
-        </div>
-      ) : null}
+      {media ?? (icon ? <IconTile icon={icon} /> : null)}
       <div className="flex min-w-0 flex-col leading-snug">
         {href ? (
           <Link
@@ -99,8 +138,9 @@ export function RecordCell({
 }
 
 /**
- * A `RecordCell` for the book a loan or reservation is about: title linking to
- * the book, author beneath. A deleted book keeps its row as «Ukjent tittel».
+ * A `RecordCell` for the book a loan or reservation is about: cover, title
+ * linking to the book, author beneath. A deleted book keeps its row as
+ * «Ukjent tittel», behind `icon`.
  */
 export function BookRecordCell({
   book,
@@ -111,7 +151,7 @@ export function BookRecordCell({
 }) {
   return (
     <RecordCell
-      icon={icon}
+      media={<BookCoverTile isbn={book?.isbn} icon={icon} />}
       name={book?.title ?? "Ukjent tittel"}
       href={book ? `/boker/${book.id}` : undefined}
     >

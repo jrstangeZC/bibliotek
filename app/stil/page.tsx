@@ -17,6 +17,10 @@ import {
   SearchRemoveIcon,
 } from "@hugeicons/core-free-icons"
 
+import {
+  BrowseModeProvider,
+  BrowseModeSwitch,
+} from "@/components/browse-mode"
 import { DetailRow } from "@/components/detail-row"
 import { ThemeSwitch } from "@/components/theme-switch"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -87,6 +91,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Logo, Wordmark } from "@/components/logo"
 import { HeaderSearch } from "@/components/site-search"
+import { BROWSE_COOKIE, parseBrowseMode } from "@/lib/browse"
 import { parseTheme, THEME_COOKIE } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
@@ -242,7 +247,9 @@ function SuggestionsExample({
    ---------------------------------------------------------------------- */
 
 export default async function StylePage() {
-  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value)
+  const cookieStore = await cookies()
+  const theme = parseTheme(cookieStore.get(THEME_COOKIE)?.value)
+  const browseMode = parseBrowseMode(cookieStore.get(BROWSE_COOKIE)?.value)
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -385,6 +392,16 @@ export default async function StylePage() {
             Temabryteren står til høyre for brukermenyen i toppmenyen. Tommelen
             glir mot temaet som er i bruk, og begge ordene kan trykkes på.
           </p>
+          <div className="mt-6">
+            <BrowseModeProvider mode={browseMode}>
+              <BrowseModeSwitch />
+            </BrowseModeProvider>
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Visningsbryteren på forsiden er laget på samme måte. Den står til
+            høyre for overskriften «Bøker», med en kort forklaring under, og
+            bytter mellom tabellen og karusellen.
+          </p>
         </Section>
 
         <Separator />
@@ -505,6 +522,13 @@ export default async function StylePage() {
               </Table>
             </CardContent>
           </Card>
+          <p className="mt-4 max-w-2xl text-sm/relaxed text-muted-foreground">
+            I boklisten på forsiden står omslaget der ikonflisen står her, i en
+            like stor plass og maks 36 px høyt, så titlene står på linje.
+            Mangler omslaget, vises ikonflisen. I karusellen ligger omslaget
+            øverst i hvert kort og åpnes i full størrelse når pekeren hviler
+            på det.
+          </p>
         </Section>
 
         <Separator />

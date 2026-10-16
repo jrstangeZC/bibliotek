@@ -37,10 +37,11 @@ Layers, top to bottom:
 - **`lib/actions.ts`**: every server action. Each one checks who is acting
   itself (`requireLibrarianForAction` or `getCurrentBorrower`), because an
   action is a public endpoint whether or not a page links to it. Whose loan or
-  reservation it is comes from the session, never from a form field. Three
+  reservation it is comes from the session, never from a form field. Four
   actions are deliberate exceptions, since they act on the session itself and
-  touch no data: `signInAction`, `signOutAction` and `setThemeAction`. After a
-  write, call the matching helper from `lib/revalidate.ts`
+  touch no data: `signInAction`, `signOutAction`, `setThemeAction` and
+  `setBrowseModeAction`. After a write, call the matching helper from
+  `lib/revalidate.ts`
   (`revalidateLoanViews`, `revalidateCatalogue`, `revalidateRegister`,
   `revalidateEverything`), never `revalidatePath` directly.
   `revalidateLoanViews` includes the layout, because the banner shows held
@@ -61,7 +62,8 @@ Layers, top to bottom:
 - **Pure rule modules**: `fees`, `availability`, `renewals`, `reservations`,
   `dates`, `mail`, `search` (the one text matcher behind every search field),
   plus form parsing and validation in `books` and `borrowers`. Alongside them
-  sit pure helpers (`types`, `errors`, `forms`, `format`, `theme`, `utils`) and
+  sit pure helpers (`types`, `errors`, `forms`, `format`, `theme`, `browse`,
+  `covers`, `utils`) and
   one config module, `demo`, which reads the environment once at load. It is
   the only module in `lib/` that reads `process.env`.
   They do no I/O and take `now`/`today` as a parameter rather than reading the

@@ -116,6 +116,16 @@ i riktig tema fra serveren:
 | `light` | lyst  |
 | `dark`  | mørkt |
 
+Cookien `visning` avgjør hvordan forsiden viser samlingen. Den settes med
+bryteren «Liste | Karusell» til høyre for overskriften «Bøker», og forsiden
+leser den, så valgt visning kommer ferdig fra serveren:
+
+| Cookie     | Visning  |
+| ---------- | -------- |
+| mangler    | liste    |
+| `list`     | liste    |
+| `carousel` | karusell |
+
 ## Forretningsregler
 
 - Et lån løper i **28 dager** fra utlånsdagen
@@ -143,6 +153,16 @@ Reglene ligger i [`lib/fees.ts`](lib/fees.ts),
 [`lib/renewals.ts`](lib/renewals.ts) og
 [`lib/reservations.ts`](lib/reservations.ts), og er dekket av tester. Dager
 telles i hele UTC-døgn, så klokkeslettet aldri gjør en innlevering forsinket.
+
+## Bokomslag
+
+Omslagene hentes fra [Open Library Covers API](https://openlibrary.org/dev/docs/api/covers)
+med ISBN-en: `https://covers.openlibrary.org/b/isbn/<isbn>-L.jpg?default=false`
+(`lib/covers.ts`). Det er gratis og krever ingen nøkkel. Grensen er 100
+ISBN-oppslag per IP per fem minutter, men bildene går gjennom `next/image`, så
+serveren henter hvert omslag én gang og mellomlagrer det. `next.config.ts`
+tillater bare denne adressen. `default=false` gjør at et manglende omslag gir
+404, og da vises bokikonet i stedet.
 
 ## Design
 

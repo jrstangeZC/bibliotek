@@ -15,6 +15,7 @@ import { BookStatusBadge } from "@/components/book-status";
 import { LoanDueCell, LoanStatusCell } from "@/components/loan-status";
 import { PageHeading } from "@/components/page-heading";
 import {
+  BookCoverTile,
   BookRecordCell,
   ColumnHead,
   IDENTITY_CELL,
@@ -212,7 +213,12 @@ export default async function SearchPage({ searchParams }: PageProps<"/sok">) {
                     <TableRow key={book.id}>
                       <TableCell className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}>
                         <RecordCell
-                          icon={book.available > 0 ? Book02Icon : BookOpen01Icon}
+                          media={
+                            <BookCoverTile
+                              isbn={book.isbn}
+                              icon={book.available > 0 ? Book02Icon : BookOpen01Icon}
+                            />
+                          }
                           name={book.title}
                           href={`/boker/${book.id}`}
                         >

@@ -86,7 +86,8 @@ Actions redirect back with a marker. The page turns it into an `Alert` with
 | A borrower who reaches an admin page | `LibrarianRequired` |
 | Column header | `ColumnHead` |
 | Identity cell (tile, name, muted second line) | `RecordCell` inside a `TableCell` carrying `IDENTITY_CELL` |
-| The book a loan or reservation is about | `BookRecordCell`. Covers a deleted book; pass `icon={Bookmark01Icon}` for reservations |
+| The book a loan or reservation is about | `BookRecordCell`. Shows the cover; covers a deleted book; pass `icon={Bookmark01Icon}` for reservations (the fallback when there is no cover) |
+| Any other row that names a book | `RecordCell` with `media={<BookCoverTile isbn={book.isbn} icon={…} />}` — the cover, with the icon as fallback |
 | A second two-line column (borrower beside a book) | `RecordCell` without `icon`, in a cell carrying `SECONDARY_CELL` |
 | Loan status, due date | `LoanStatusCell`, `LoanDueCell` |
 | Reservation status | `ReservationStatusCell` |

@@ -15,6 +15,7 @@ import { AdminNav } from "@/components/admin-nav";
 import { LibrarianRequired } from "@/components/librarian-required";
 import { PageHeading } from "@/components/page-heading";
 import {
+  BookCoverTile,
   BookRecordCell,
   ColumnHead,
   IDENTITY_CELL,
@@ -172,7 +173,7 @@ export default async function ReservationsPage({
                         className={`py-3 pl-(--card-spacing) ${IDENTITY_CELL}`}
                       >
                         <RecordCell
-                          icon={Book02Icon}
+                          media={<BookCoverTile isbn={hold.book?.isbn} icon={Book02Icon} />}
                           name={title}
                           href={hold.book ? `/boker/${hold.book.id}` : undefined}
                         >

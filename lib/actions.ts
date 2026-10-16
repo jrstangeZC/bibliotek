@@ -13,6 +13,11 @@ import {
 } from "@/lib/auth"
 import { readBookForm, validateBook } from "@/lib/books"
 import {
+  BROWSE_COOKIE,
+  BROWSE_COOKIE_MAX_AGE,
+  parseBrowseMode,
+} from "@/lib/browse"
+import {
   EMAIL_TAKEN_MESSAGE,
   readBorrowerForm,
   validateBorrower,
@@ -354,6 +359,25 @@ export async function setThemeAction(formData: FormData) {
   )
 
   revalidateEverything()
+}
+
+/**
+ * Switches the front page between the list and the carousel. A display
+ * preference like the theme, so it needs no session check either. Only the
+ * front page shows it, so only the catalogue screens need re-rendering.
+ */
+export async function setBrowseModeAction(formData: FormData) {
+  ;(await cookies()).set(
+    BROWSE_COOKIE,
+    parseBrowseMode(String(formData.get("mode") ?? "")),
+    {
+      sameSite: "lax",
+      path: "/",
+      maxAge: BROWSE_COOKIE_MAX_AGE,
+    }
+  )
+
+  revalidateCatalogue()
 }
 
 /**

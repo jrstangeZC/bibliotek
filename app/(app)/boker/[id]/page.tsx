@@ -7,10 +7,12 @@ import {
   ArrowLeft01Icon,
   BookmarkAdd01Icon,
   BookmarkRemove01Icon,
+  Book02Icon,
   BookOpen01Icon,
   Calendar03Icon,
 } from "@hugeicons/core-free-icons";
 
+import { BookCover } from "@/components/book-cover";
 import { BookStatusBadge, reservationBlockReasons } from "@/components/book-status";
 import { DetailRow } from "@/components/detail-row";
 import { PageHeading } from "@/components/page-heading";
@@ -31,6 +33,7 @@ import {
   reserveBookAction,
 } from "@/lib/actions";
 import { getCurrentBorrower } from "@/lib/auth";
+import { coverUrl } from "@/lib/covers";
 import { describeError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import {
@@ -140,8 +143,10 @@ export default async function BookPage({
             <BookStatusBadge book={book} />
           </CardAction>
         </CardHeader>
-        <CardContent>
-          <dl className="divide-y divide-border text-sm">
+        {/* The cover takes the right-hand 45 %; on a phone it sits above the
+            details instead, at a size that leaves them in view. */}
+        <CardContent className="flex flex-col-reverse gap-6 sm:flex-row sm:items-start">
+          <dl className="min-w-0 flex-1 divide-y divide-border text-sm">
             <DetailRow label="Forfatter">{book.author}</DetailRow>
             <DetailRow label="Utgivelsesår">
               <span className="tabular-nums">{book.year}</span>
@@ -187,6 +192,27 @@ export default async function BookPage({
               )}
             </DetailRow>
           </dl>
+          <div className="w-2/3 shrink-0 self-center sm:w-[45%] sm:self-start">
+            <BookCover
+              src={coverUrl(book.isbn, "L")}
+              alt={`Omslaget til «${book.title}»`}
+              width={500}
+              height={750}
+              sizes="(min-width: 640px) 380px, 66vw"
+              preload
+              className="h-auto w-full rounded-xl ring-1 ring-foreground/10"
+              fallback={
+                <div className="flex aspect-2/3 w-full flex-col items-center justify-center gap-3 rounded-xl bg-muted text-sm text-muted-foreground">
+                  <HugeiconsIcon
+                    icon={Book02Icon}
+                    strokeWidth={2}
+                    className="size-8"
+                  />
+                  Fant ikke noe omslag
+                </div>
+              }
+            />
+          </div>
         </CardContent>
         <CardFooter className="flex-wrap gap-3">
           {!standing ? (

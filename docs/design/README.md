@@ -207,6 +207,11 @@ bg-popover`, a ring and a shadow. Book rows put the title in `font-medium`
   `buttonVariants({ variant: "outline", size: "sm" })`, showing the name and a
   chevron, opening a `DropdownMenu` that repeats name, email and role before
   the account actions.
+- A page-wide view control sits to the right of the h1, through
+  `PageHeading`'s `aside`: the front page's «Liste | Karusell» switch
+  (`components/browse-mode.tsx`) with a `text-xs text-muted-foreground` line
+  beneath it. It is built on `WordSwitch` (`components/word-switch.tsx`), the
+  same recipe as the theme switch — use that for any two-word switch.
 - Navigation only lists what the current user may open — a plain borrower never
   sees the administration link. A page they reach anyway explains why, and
   offers the way across, rather than 404-ing.
@@ -215,6 +220,13 @@ bg-popover`, a ring and a shadow. Book rows put the title in `font-medium`
 
 - **Records go in a `Table`, never in a grid of cards.** One card may _contain_
   the table — that is the reference pattern — but a card per record is wrong.
+  **One exception:** the front page's «Karusell» view (`BookCarousel` in
+  `components/book-carousel.tsx`), an alternative to the table that the reader
+  opts into. Its slides are tiles inside the collection card — `rounded-xl
+bg-card` with an `inset-ring-1 inset-ring-foreground/10` hairline (an outer
+  ring is clipped by the carousel's `overflow-hidden`), a `bg-muted` icon tile
+  and a serif title. The previous/next buttons sit in a row below the slides,
+  not outside the edges, where the primitive puts them.
 - Wrap the table in a `Card`: a `CardHeader` with the title, a one-line
   description, and a `CardAction` holding an outline "Vis alle" button; then
   `CardContent className="px-0"` so rows run edge to edge. Give
@@ -236,6 +248,22 @@ bg-popover`, a ring and a shadow. Book rows put the title in `font-medium`
   without it a narrow screen squeezes it to a few characters while the fixed
   columns keep their width. Below the floor the table scrolls sideways instead,
   which is the correct behaviour on a phone.
+- **Book covers** come from Open Library through `coverUrl` (`lib/covers.ts`)
+  and render with `BookCover` (`components/book-cover.tsx`), which takes a
+  `fallback` for a book without one — always the icon the cover replaces, so
+  a missing cover never leaves a hole. **Every table row that names a book
+  leads with its cover**: `BookRecordCell` does it for loans and reservations,
+  and any other book row passes `media={<BookCoverTile isbn icon />}` (both in
+  `components/record-cell.tsx`) to `RecordCell`. The tile is a `size-9` box
+  with the cover `h-9 w-auto max-w-9 object-contain`, so it is never taller
+  than the icon tile and names stay aligned. In the carousel it sits on a fixed `h-56 bg-muted` band at the top
+  of the slide, through `CoverZoom` (`components/cover-zoom.tsx`): resting the
+  pointer on it for 300 ms (or pressing it) opens it over the whole screen at
+  its real size (one image pixel per CSS pixel), or scaled down to fit when
+  that is more than 70 % of the width or height — 15 % free on every side
+  either way, proportions kept. Escape, a press beside the cover or the X in the corner closes
+  it. On a book's page the cover takes the right-hand 45 % of the
+  `CardContent`, beside the `<dl>`, and moves above it on a phone.
 - A person's name on a librarian's screen links to their edit form:
   `href={borrowerEditHref(id)}` on the `RecordCell` (from `lib/borrowers.ts`).
   Never hand-build the URL; the form's anchor is `BORROWER_FORM_ID`, beside it.
