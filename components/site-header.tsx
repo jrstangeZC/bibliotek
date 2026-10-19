@@ -77,7 +77,7 @@ export function SiteHeader({
 
   return (
     <header className="border-b border-border bg-card">
-      <div className="mx-auto flex w-full max-w-225 flex-wrap items-center justify-between gap-x-8 gap-y-3 px-6 py-3">
+      <div className="flex mx-[max(10%,calc((100%_-_var(--container-7xl))/2))] max-w-7xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-6 py-3">
         <Link href="/" aria-label="Bibliotek — til boklisten">
           <Wordmark />
         </Link>

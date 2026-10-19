@@ -255,7 +255,7 @@ export default async function StylePage() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* 1 — Header */}
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex w-full max-w-225 flex-wrap items-center justify-between gap-x-8 gap-y-3 px-6 py-3">
+        <div className="flex mx-[max(10%,calc((100%_-_var(--container-7xl))/2))] max-w-7xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-6 py-3">
           <Wordmark />
           <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 sm:w-auto">
             {/* Det ekte headerfeltet: uten knapp, Enter sender til /sok. */}
@@ -289,7 +289,7 @@ export default async function StylePage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-225 flex-1 px-6 py-12">
+      <main className="mx-[max(10%,calc((100%_-_var(--container-7xl))/2))] max-w-7xl flex-1 px-6 py-12">
         <div>
           <h1 className="font-heading text-3xl font-medium tracking-tight text-balance">
             Stilguide

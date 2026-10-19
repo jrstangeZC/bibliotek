@@ -27,7 +27,7 @@ export const IDENTITY_CELL = "w-full max-w-0 min-w-64";
  * For a *second* two-line column in the same table — a borrower beside a book,
  * say. It gets a smaller floor and no share of the slack, because a table has
  * one identity column and this is not it. Two cells at the full
- * `IDENTITY_CELL` floor overflow the 900 px column on their own.
+ * `IDENTITY_CELL` floor overflow the content column on a narrow screen.
  */
 export const SECONDARY_CELL = "max-w-0 min-w-40";
 

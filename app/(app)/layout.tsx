@@ -24,7 +24,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <SiteHeader user={user} readyCount={holds.length} theme={theme} />
-      <main className="mx-auto w-full max-w-225 flex-1 px-6 py-12">
+      <main className="mx-[max(10%,calc((100%_-_var(--container-7xl))/2))] max-w-7xl flex-1 px-6 py-12">
         <HoldReadyBanner holds={holds} />
         {children}
       </main>

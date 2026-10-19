@@ -194,8 +194,15 @@ bg-popover`, a ring and a shadow. Book rows put the title in `font-medium`
 
 ## Layout
 
-- Content column: `mx-auto w-full max-w-225 px-6` (900 px). Header and main
-  share the same column so their edges line up.
+- Content column: `mx-[max(10%,calc((100%_-_var(--container-7xl))/2))]
+max-w-7xl px-6` — at most 1280 px (`max-w-7xl`), with at least 10 % free on
+  either side. The margin is the larger of 10 % and half of what is left over
+  beside 1280 px, so the column stays centred on wide screens; a plain
+  `mx-[10%]` would pin it to the left once it hits the cap. No `w-full`: with
+  the margins it would make the column 100 % wide plus 20 % and overflow.
+  Header (its inner row, so the `bg-card` and `border-b` still run edge to
+  edge) and main share the same classes so their edges line up — change both,
+  and the copies on `/stil`, together.
 - Vertical rhythm: `py-10`–`py-12` between sections, `Separator` between them.
 - Header is a single row: mark + name on the left, then the search field, nav,
   the current user's menu and the «Mørk | Lys» `ThemeSwitch`
@@ -237,7 +244,7 @@ bg-card` with an `inset-ring-1 inset-ring-foreground/10` hairline (an outer
   qualifier in `text-muted-foreground`. Fold secondary attributes into that
   second line rather than giving each one its own column.
 - **A table must not scroll horizontally on desktop.** Horizontal scroll is
-  fine below the `sm` breakpoint and expected there; inside the 900 px column it
+  fine below the `sm` breakpoint and expected there; inside the content column it
   means the table is carrying a column it doesn't need. Two rules keep it out:
   every `TableCell` is `whitespace-nowrap`, so (1) give the identity cell
   `IDENTITY_CELL` (`w-full max-w-0 min-w-64`) and let `RecordCell` truncate — it
