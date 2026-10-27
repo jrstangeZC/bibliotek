@@ -1,0 +1,11 @@
+#!/bin/sh
+# node_modules is not in git, so a pull that changes the dependencies leaves
+# this checkout without them until npm install runs. Run it whenever the merge
+# touched package.json or package-lock.json.
+
+changed=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD)
+
+if echo "$changed" | grep -qE '^package(-lock)?\.json$'; then
+  echo "post-merge: avhengighetene er endret, kjører npm install …"
+  npm install
+fi

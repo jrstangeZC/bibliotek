@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "reset-data": "node scripts/reset-data.mjs"
+    "reset-data": "node scripts/reset-data.mjs",
+    "prepare": "node scripts/install-hooks.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -17,7 +18,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
-    "next": "^16.3.7",
+    "next": "^16.4.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "shadcn": "^4.18.0",
